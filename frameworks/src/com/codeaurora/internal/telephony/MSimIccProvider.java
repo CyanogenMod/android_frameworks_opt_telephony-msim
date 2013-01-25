@@ -22,6 +22,7 @@ import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.MatrixCursor;
+import android.database.MergeCursor;
 import android.net.Uri;
 import android.os.RemoteException;
 import android.os.ServiceManager;
@@ -49,6 +50,7 @@ public class MSimIccProvider extends IccProvider {
     private static final int FDN_SUB1 = 3;
     private static final int FDN_SUB2 = 4;
     private static final int SDN      = 5;
+    private static final int ADN_ALL  = 8;
 
     private static final UriMatcher URL_MATCHER =
                             new UriMatcher(UriMatcher.NO_MATCH);
@@ -56,6 +58,7 @@ public class MSimIccProvider extends IccProvider {
     static {
         URL_MATCHER.addURI("iccmsim", "adn", ADN_SUB1);
         URL_MATCHER.addURI("iccmsim", "adn_sub2", ADN_SUB2);
+        URL_MATCHER.addURI("iccmsim", "adn_all", ADN_ALL);
         URL_MATCHER.addURI("iccmsim", "fdn", FDN_SUB1);
         URL_MATCHER.addURI("iccmsim", "fdn_sub2", FDN_SUB2);
         URL_MATCHER.addURI("iccmsim", "sdn", SDN);
@@ -70,6 +73,9 @@ public class MSimIccProvider extends IccProvider {
 
             case ADN_SUB2:
                 return loadFromEf(IccConstants.EF_ADN, MSimConstants.SUB2);
+
+            case ADN_ALL:
+                return loadAllSimContacts(IccConstants.EF_ADN);
 
             case FDN_SUB1:
                 return loadFromEf(IccConstants.EF_FDN, MSimConstants.SUB1);
@@ -86,6 +92,21 @@ public class MSimIccProvider extends IccProvider {
         }
     }
 
+    private Cursor loadAllSimContacts(int efType) {
+        int phoneCount = MSimTelephonyManager.getDefault().getPhoneCount();
+        Cursor [] result = new Cursor[phoneCount];
+        for (int i = 0; i < phoneCount; i++) {
+            if (MSimTelephonyManager.getDefault().hasIccCard(i)) {
+                result[i] = loadFromEf(efType, i);
+                Rlog.i(TAG,"ADN Records loaded for Subscription ::" + i);
+            } else {
+                result[i] = null;
+                Rlog.e(TAG,"ICC card is not present for subscription ::" + i);
+            }
+        }
+        return new MergeCursor(result);
+    }
+
     @Override
     public String getType(Uri url) {
         switch (URL_MATCHER.match(url)) {
@@ -94,6 +115,7 @@ public class MSimIccProvider extends IccProvider {
             case FDN_SUB1:
             case FDN_SUB2:
             case SDN:
+            case ADN_ALL:
                 return "vnd.android.cursor.dir/sim-contact";
 
             default:
@@ -167,6 +189,7 @@ public class MSimIccProvider extends IccProvider {
 
         resultUri = Uri.parse(buf.toString());
 
+        getContext().getContentResolver().notifyChange(url, null);
         /*
         // notify interested parties that an insertion happened
         getContext().getContentResolver().notifyInsert(
@@ -258,6 +281,7 @@ public class MSimIccProvider extends IccProvider {
             return 0;
         }
 
+        getContext().getContentResolver().notifyChange(url, null);
         return 1;
     }
 
@@ -306,6 +330,7 @@ public class MSimIccProvider extends IccProvider {
             return 0;
         }
 
+        getContext().getContentResolver().notifyChange(url, null);
         return 1;
     }
 
