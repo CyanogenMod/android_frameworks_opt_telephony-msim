@@ -48,12 +48,9 @@ final class MSimCdmaLteServiceStateTracker extends CdmaLteServiceStateTracker {
 
     @Override
     protected UiccCardApplication getUiccCardApplication() {
-        Subscription subscriptionData = ((MSimCDMALTEPhone)mPhone).getSubscriptionInfo();
-        if(subscriptionData != null) {
-            return  ((MSimUiccController) mUiccController).getUiccCardApplication(
-                    subscriptionData.slotId, UiccController.APP_FAM_3GPP2);
-        }
-        return null;
+        return  ((MSimUiccController) mUiccController).getUiccCardApplication(
+                SubscriptionManager.getInstance().getSlotId(((MSimCDMALTEPhone)mPhone).
+                getSubscription()), UiccController.APP_FAM_3GPP2);
     }
 
     @Override

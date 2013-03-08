@@ -270,11 +270,8 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
     @Override
     protected UiccCardApplication getUiccCardApplication() {
-        if(mSubscriptionData != null) {
-            return  ((MSimUiccController) mUiccController).getUiccCardApplication(
-                    mSubscriptionData.slotId, UiccController.APP_FAM_3GPP2);
-        }
-        return null;
+        return  ((MSimUiccController) mUiccController).getUiccCardApplication(SubscriptionManager.
+                getInstance().getSlotId(mSubscription), UiccController.APP_FAM_3GPP2);
     }
 
     @Override

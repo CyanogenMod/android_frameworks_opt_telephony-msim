@@ -73,14 +73,25 @@ public class SubscriptionManager extends Handler {
     static final String LOG_TAG = "SubscriptionManager";
 
     private class SetUiccSubsParams {
-        public SetUiccSubsParams(int sub, SubscriptionStatus status) {
+        public SetUiccSubsParams(int sub, SubscriptionStatus status, String appIndexType,
+                int app3gppIndexId,int app3gpp2IndexId, String app3gppStatus,
+                String app3gpp2Status) {
             subId = sub;
             subStatus = status;
+            appType = appIndexType;
+            app3gppId = app3gppIndexId;
+            app3gpp2Id = app3gpp2IndexId;
+            app3gppAppStatus = app3gppStatus;
+            app3gpp2AppStatus = app3gpp2Status;
         }
         public int subId;      // sub id
         public SubscriptionStatus subStatus;  // Activation status - activate or deactivate?
+        public String appType; // App type
+        public int app3gppId; // 3gpp App id
+        public int app3gpp2Id; // 3gpp2 App id
+        public String app3gppAppStatus;
+        public String app3gpp2AppStatus;
     }
-
     /**
      * Class to maintain the current subscription info in SubscriptionManager.
      */
@@ -125,6 +136,8 @@ public class SubscriptionManager extends Handler {
     // Set Subscription Return status
     public static final String SUB_ACTIVATE_SUCCESS = "ACTIVATE SUCCESS";
     public static final String SUB_ACTIVATE_FAILED = "ACTIVATE FAILED";
+    public static final String SUB_GLOBAL_ACTIVATE_FAILED = "GLOBAL ACTIVATE FAILED";
+    public static final String SUB_GLOBAL_DEACTIVATE_FAILED = "GLOBAL DEACTIVATE FAILED";
     public static final String SUB_ACTIVATE_NOT_SUPPORTED = "ACTIVATE NOT SUPPORTED";
     public static final String SUB_DEACTIVATE_SUCCESS = "DEACTIVATE SUCCESS";
     public static final String SUB_DEACTIVATE_FAILED = "DEACTIVATE FAILED";
@@ -160,6 +173,7 @@ public class SubscriptionManager extends Handler {
 
     private int mCurrentDds;
     private int mQueuedDds;
+    private int mCurrentAppId;
     private boolean mDisableDdsInProgress;
 
     private boolean mSetSubscriptionInProgress = false;
@@ -538,6 +552,7 @@ public class SubscriptionManager extends Handler {
      */
     private void processSetUiccSubscriptionDone(AsyncResult ar) {
         SetUiccSubsParams setSubParam = (SetUiccSubsParams)ar.userObj;
+        boolean saveGlobalSettings = false;
         String cause = null;
         SubscriptionStatus subStatus = SubscriptionStatus.SUB_INVALID;
         Subscription currentSub = null;
@@ -548,9 +563,94 @@ public class SubscriptionManager extends Handler {
            return;
         }
 
-        if (ar.exception != null) {
+        if (setSubParam.appType.equals("GLOBAL") &&
+                (setSubParam.subStatus == SubscriptionStatus.SUB_ACTIVATE)) {
+            if ((mCardSubMgr.is3gppApp(setSubParam.subId, setSubParam.app3gppId)) &&
+                   setSubParam.app3gppAppStatus == SUB_NOT_CHANGED) {
+                if (ar.exception == null) {
+                    mCurrentAppId = setSubParam.app3gppId;
+                    setSubParam.app3gppAppStatus = SUB_ACTIVATE_SUCCESS;
+                } else {
+                    setSubParam.app3gppAppStatus = SUB_ACTIVATE_FAILED;
+                }
+            }
+            if ((mCardSubMgr.is3gpp2App(setSubParam.subId, setSubParam.app3gpp2Id)) &&
+                     setSubParam.app3gpp2AppStatus == SUB_NOT_CHANGED) {
+                if (ar.exception == null) {
+                    mCurrentAppId = setSubParam.app3gpp2Id;
+                    setSubParam.app3gpp2AppStatus = SUB_ACTIVATE_SUCCESS;
+                } else {
+                    setSubParam.app3gpp2AppStatus = SUB_ACTIVATE_FAILED;
+                }
+            }
+            if (setSubParam.app3gppAppStatus == SUB_NOT_CHANGED ||
+                  setSubParam.app3gpp2AppStatus == SUB_NOT_CHANGED) {
+                return;
+            }
+            if (setSubParam.app3gppAppStatus == SUB_ACTIVATE_SUCCESS
+                    && setSubParam.app3gpp2AppStatus == SUB_ACTIVATE_SUCCESS) {
+                subStatus = SubscriptionStatus.SUB_ACTIVATED;
+                cause = SUB_ACTIVATE_SUCCESS;
+                currentSub = mActivatePending.get(SubscriptionId.values()[setSubParam.subId]);
+            } else if (setSubParam.app3gppAppStatus == SUB_ACTIVATE_FAILED
+                      && setSubParam.app3gpp2AppStatus == SUB_ACTIVATE_FAILED) {
+                cause = SUB_ACTIVATE_FAILED;
+                subStatus = SubscriptionStatus.SUB_DEACTIVATED;
+                currentSub = mActivatePending.get(SubscriptionId.values()[setSubParam.subId]);
+            } else {
+                saveGlobalSettings = true;
+                subStatus = SubscriptionStatus.SUB_ACTIVATED;
+                cause = SUB_GLOBAL_ACTIVATE_FAILED;
+                currentSub = mCardSubMgr.getCardSubscriptions(
+                        setSubParam.subId).subscription[mCurrentAppId];
+            }
+            mActivatePending.put(SubscriptionId.values()[setSubParam.subId], null);
+        } else if (setSubParam.appType.equals("GLOBAL") &&
+                (setSubParam.subStatus == SubscriptionStatus.SUB_DEACTIVATE)) {
+            if ((mCardSubMgr.is3gppApp(setSubParam.subId, setSubParam.app3gppId)) &&
+                   setSubParam.app3gppAppStatus == SUB_NOT_CHANGED) {
+                if (ar.exception == null) {
+                    mCurrentAppId = setSubParam.app3gppId;
+                    setSubParam.app3gppAppStatus = SUB_DEACTIVATE_SUCCESS;
+                } else {
+                    setSubParam.app3gppAppStatus = SUB_DEACTIVATE_FAILED;
+                }
+            }
+            if ((mCardSubMgr.is3gpp2App(setSubParam.subId, setSubParam.app3gpp2Id)) &&
+                     setSubParam.app3gpp2AppStatus == SUB_NOT_CHANGED) {
+                if (ar.exception == null) {
+                    mCurrentAppId = setSubParam.app3gpp2Id;
+                    setSubParam.app3gpp2AppStatus = SUB_DEACTIVATE_SUCCESS;
+                } else {
+                    setSubParam.app3gpp2AppStatus = SUB_DEACTIVATE_FAILED;
+                }
+            }
+            if (setSubParam.app3gppAppStatus == SUB_NOT_CHANGED ||
+                  setSubParam.app3gpp2AppStatus == SUB_NOT_CHANGED) {
+                return;
+            }
+            if (setSubParam.app3gppAppStatus == SUB_DEACTIVATE_SUCCESS
+                    && setSubParam.app3gpp2AppStatus == SUB_DEACTIVATE_SUCCESS) {
+                subStatus = SubscriptionStatus.SUB_DEACTIVATED;
+                cause = SUB_DEACTIVATE_SUCCESS;
+                currentSub = mDeactivatePending.get(SubscriptionId.values()[setSubParam.subId]);
+                notifySubscriptionDeactivated(setSubParam.subId);
+            } else if (setSubParam.app3gppAppStatus == SUB_DEACTIVATE_FAILED
+                      && setSubParam.app3gpp2AppStatus == SUB_DEACTIVATE_FAILED) {
+                cause = SUB_DEACTIVATE_FAILED;
+                subStatus = SubscriptionStatus.SUB_ACTIVATED;
+                currentSub = mDeactivatePending.get(SubscriptionId.values()[setSubParam.subId]);
+            } else {
+                saveGlobalSettings = true;
+                subStatus = SubscriptionStatus.SUB_DEACTIVATED;
+                cause = SUB_GLOBAL_DEACTIVATE_FAILED;
+                currentSub = mCardSubMgr.getCardSubscriptions(
+                        setSubParam.subId).subscription[mCurrentAppId];
+                notifySubscriptionDeactivated(setSubParam.subId);
+            }
+            mDeactivatePending.put(SubscriptionId.values()[setSubParam.subId], null);
+        } else if (ar.exception != null) {
             // SET_UICC_SUBSCRIPTION failed
-
             if (ar.exception instanceof CommandException ) {
                 CommandException.Error error = ((CommandException) (ar.exception))
                     .getCommandError();
@@ -563,7 +663,6 @@ public class SubscriptionManager extends Handler {
                     }
                 }
             }
-
             if (setSubParam.subStatus == SubscriptionStatus.SUB_ACTIVATE) {
                 // Set uicc subscription failed for activating the sub.
                 logd("subscription of SUB:" + setSubParam.subId + " Activate Failed");
@@ -639,7 +738,7 @@ public class SubscriptionManager extends Handler {
                 subStatus,
                 cause);
         // do not saveUserPreferredSubscription in case of failure
-        if (ar.exception == null) {
+        if (ar.exception == null || saveGlobalSettings) {
             saveUserPreferredSubscription(setSubParam.subId,
                     getCurrentSubscription(SubscriptionId.values()[setSubParam.subId]));
         } else {
@@ -677,6 +776,10 @@ public class SubscriptionManager extends Handler {
         }
 
         return result;
+    }
+
+    public int getSlotId(int subscription) {
+         return getCurrentSubscription(subscription).slotId;
     }
 
     /**
@@ -1068,6 +1171,40 @@ public class SubscriptionManager extends Handler {
         }
     }
 
+    private void setUiccSubscription(Subscription newSub) {
+        if (newSub.appType.equals("GLOBAL")) {
+            int globalAppsIndex[] = mCardSubMgr.getGlobalAppsIndex(newSub.slotId);
+            SetUiccSubsParams globalSetSubParam = new SetUiccSubsParams(
+                    newSub.subId, newSub.subStatus, newSub.appType, globalAppsIndex[0],
+                    globalAppsIndex[1], SUB_NOT_CHANGED, SUB_NOT_CHANGED);
+
+            for (int i=0; i < globalAppsIndex.length; i++) {
+                Message msgSetUiccSubDone = Message.obtain(this,
+                        EVENT_SET_UICC_SUBSCRIPTION_DONE,
+                        globalSetSubParam);
+                mCi[newSub.subId].setUiccSubscription(newSub.slotId,
+                        globalAppsIndex[i],
+                        newSub.subId,
+                        newSub.subStatus.ordinal(),
+                        msgSetUiccSubDone);
+            }
+        } else {
+            SetUiccSubsParams setSubParam = new SetUiccSubsParams(
+                    newSub.subId, newSub.subStatus, newSub.appType,
+                    Subscription.SUBSCRIPTION_INDEX_INVALID,
+                    Subscription.SUBSCRIPTION_INDEX_INVALID,
+                    SUB_NOT_CHANGED, SUB_NOT_CHANGED);
+            Message msgSetUiccSubDone = Message.obtain(this,
+                    EVENT_SET_UICC_SUBSCRIPTION_DONE,
+                    setSubParam);
+            mCi[newSub.subId].setUiccSubscription(newSub.slotId,
+                    newSub.getAppIndex(),
+                    newSub.subId,
+                    newSub.subStatus.ordinal(),
+                    msgSetUiccSubDone);
+        }
+    }
+
     /**
      * Start one deactivate from the pending deactivate request queue.
      * If the deactivate is required for the DDS SUB, then initiate
@@ -1101,16 +1238,7 @@ public class SubscriptionManager extends Handler {
                     mSetDdsRequired = true;
                 } else {
                     logd("startNextPendingDeactivateRequests: Deactivating now");
-                    SetUiccSubsParams setSubParam = new SetUiccSubsParams(
-                            newSub.subId, newSub.subStatus);
-                    Message msgSetUiccSubDone = Message.obtain(this,
-                            EVENT_SET_UICC_SUBSCRIPTION_DONE,
-                            setSubParam);
-                    mCi[newSub.subId].setUiccSubscription(newSub.slotId,
-                            newSub.getAppIndex(),
-                            newSub.subId,
-                            newSub.subStatus.ordinal(),
-                            msgSetUiccSubDone);
+                    setUiccSubscription(newSub);
                 }
                 // process one request at a time!!
                 return true;
@@ -1182,17 +1310,7 @@ public class SubscriptionManager extends Handler {
                 MSimProxyManager.getInstance().checkAndUpdatePhoneObject(newSub);
 
                 logd("startNextPendingActivateRequests: Activating SUB : " + newSub);
-                SetUiccSubsParams setSubParam = new SetUiccSubsParams(
-                        newSub.subId, newSub.subStatus);
-                Message msgSetUiccSubDone = Message.obtain(this,
-                        EVENT_SET_UICC_SUBSCRIPTION_DONE,
-                        setSubParam);
-                mCi[newSub.subId].setUiccSubscription(newSub.slotId,
-                        newSub.getAppIndex(),
-                        newSub.subId,
-                        newSub.subStatus.ordinal(),
-                        msgSetUiccSubDone);
-
+                setUiccSubscription(newSub);
                 // process one request at a time!!
                 return true;
             }

@@ -57,12 +57,9 @@ public final class MSimGsmServiceStateTracker extends GsmServiceStateTracker {
 
     @Override
     protected UiccCardApplication getUiccCardApplication() {
-        Subscription subscriptionData = ((MSimGSMPhone)mPhone).getSubscriptionInfo();
-        if (subscriptionData != null) {
-            return  ((MSimUiccController) mUiccController).getUiccCardApplication(
-                    subscriptionData.slotId, UiccController.APP_FAM_3GPP);
-        }
-        return null;
+        return  ((MSimUiccController) mUiccController).getUiccCardApplication(SubscriptionManager.
+                getInstance().getSlotId(((MSimGSMPhone)mPhone).getSubscription()),
+                UiccController.APP_FAM_3GPP);
     }
 
     @Override
