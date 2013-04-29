@@ -38,6 +38,7 @@ import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.uicc.UiccController;
 import com.android.internal.telephony.MSimConstants;
 import com.android.internal.telephony.MSimConstants.CardUnavailableReason;
+import com.android.internal.telephony.RIL;
 
 import com.codeaurora.telephony.msim.Subscription.SubscriptionStatus;
 
@@ -117,6 +118,8 @@ public class SubscriptionManager extends Handler {
     private static final int EVENT_RADIO_ON = 8;
     private static final int EVENT_RADIO_OFF_OR_NOT_AVAILABLE = 9;
     private static final int EVENT_PROCESS_AVAILABLE_CARDS = 10;
+    private static final int EVENT_SET_PRIORITY_SUBSCRIPTION_DONE = 11;
+    private static final int EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE = 12;
 
 
     // Set Subscription Return status
@@ -290,6 +293,9 @@ public class SubscriptionManager extends Handler {
                 subId = (Integer)ar.userObj;
                 logd("EVENT_RADIO_ON on SUB: " + subId);
                 mRadioOn[subId] = true;
+                if (isAllRadioOn()) {
+                   sendDefaultSubsInfo();
+                }
                 break;
 
             case EVENT_CARD_INFO_AVAILABLE:
@@ -335,6 +341,16 @@ public class SubscriptionManager extends Handler {
             case EVENT_PROCESS_AVAILABLE_CARDS:
                 Rlog.d(LOG_TAG, "EVENT_PROCESS_AVAILABLE_CARDS");
                 processAvailableCards();
+                break;
+
+            case EVENT_SET_PRIORITY_SUBSCRIPTION_DONE:
+                Rlog.d(LOG_TAG, "EVENT_SET_PRIORITY_SUBSCRIPTION_DONE");
+                processSetPrioritySubscriptionDone((AsyncResult)msg.obj);
+                break;
+
+            case EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE:
+                Rlog.d(LOG_TAG, "EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE");
+                processSetDefaultVoiceSubscriptionDone((AsyncResult)msg.obj);
                 break;
 
             default:
@@ -702,6 +718,7 @@ public class SubscriptionManager extends Handler {
             if (getCurrentSubscriptionStatus(subId) != SubscriptionStatus.SUB_ACTIVATED) {
                 subscription = getNextActiveSubscription(subscription);
                 MSimPhoneFactory.setVoiceSubscription(subscription);
+                MSimPhoneFactory.setPrioritySubscription(subscription);
                 if (activeSubCount == 1) {
                     MSimPhoneFactory.setPromptEnabled(false);
                 }
@@ -715,6 +732,8 @@ public class SubscriptionManager extends Handler {
                     MSimPhoneFactory.setSMSPromptEnabled(false);
                 }
             }
+            sendDefaultSubsInfo();
+
             logd("updateSubPreferences: current defaultSub = "
                     + MSimPhoneFactory.getDefaultSubscription());
             logd("updateSubPreferences: current mCurrentDds = " + mCurrentDds);
@@ -807,6 +826,30 @@ public class SubscriptionManager extends Handler {
         processActivateRequests();
 
         notifyIfAnyNewCardsAvailable();
+    }
+
+    /**
+     * Handles the EVENT_SET_PRIORITY_SUBSCRIPTION_DONE event
+     * @param ar
+     */
+    private void processSetPrioritySubscriptionDone(AsyncResult ar) {
+        if (ar.exception == null) {
+            Rlog.d(LOG_TAG, "setPrioritySubscriptionDone is success");
+        } else {
+            Rlog.e(LOG_TAG, "setPrioritySubscriptionDone is failed");
+        }
+    }
+
+    /**
+     * Handles the EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE event
+     * @param ar
+     */
+    private void processSetDefaultVoiceSubscriptionDone(AsyncResult ar) {
+        if (ar.exception == null) {
+            Rlog.d(LOG_TAG, "setDefaultVoiceSubscriptionDone is success");
+        } else {
+            Rlog.e(LOG_TAG, "setDefaultVoiceSubscriptionDone is failed");
+        }
     }
 
     private void notifyIfAnyNewCardsAvailable() {
@@ -1604,5 +1647,18 @@ public class SubscriptionManager extends Handler {
 
     public boolean isSetSubscriptionInProgress() {
         return mSetSubscriptionInProgress;
+    }
+
+    private void sendDefaultSubsInfo () {
+        int prioritySub = MSimPhoneFactory.getPrioritySubscription();
+        int defaultVoiceSub = MSimPhoneFactory.getVoiceSubscription();
+
+        Rlog.d(LOG_TAG, " Multi Sim Subscription: priority sub = " + prioritySub +
+                "default voice sub = " + defaultVoiceSub);
+        Message msgPrioritySub = Message.obtain(this, EVENT_SET_PRIORITY_SUBSCRIPTION_DONE, null);
+        Message msgDefaultVoiceSub = Message.obtain(this,
+                EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE, null);
+        mCi[MSimConstants.SUB1].setPrioritySub(prioritySub, msgPrioritySub);
+        mCi[MSimConstants.SUB1].setDefaultVoiceSub(defaultVoiceSub, msgDefaultVoiceSub);
     }
 }
