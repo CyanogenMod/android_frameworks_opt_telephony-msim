@@ -42,8 +42,8 @@ import com.android.internal.telephony.uicc.UiccController;
  */
 public class MSimUiccController extends UiccController {
     private CommandsInterface[] mCis;
-    private UiccCard[] mUiccCards = new UiccCard[MSimTelephonyManager.getDefault().getPhoneCount()];
-
+    private MSimUiccCard[] mUiccCards = new MSimUiccCard[MSimTelephonyManager.
+                                                              getDefault().getPhoneCount()];
     public static MSimUiccController make(Context c, CommandsInterface[] ci) {
         synchronized (mLock) {
             if (mInstance != null) {
@@ -198,7 +198,7 @@ public class MSimUiccController extends UiccController {
 
         if (mUiccCards[index] == null) {
             //Create new card
-            mUiccCards[index] = new UiccCard(mContext, mCis[index], status);
+            mUiccCards[index] = new MSimUiccCard(mContext, mCis[index], status, index);
 
             // Update the UiccCard in base class, so that if someone calls
             // UiccManager.getUiccCard(), it will return the default card.
