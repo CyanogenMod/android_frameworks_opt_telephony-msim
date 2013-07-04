@@ -286,6 +286,30 @@ public class MSimPhoneFactory extends PhoneFactory {
         Rlog.d(LOG_TAG, "setVoicePromptOption to " + enabled);
     }
 
+    /* Returns User SMS Prompt property,  enabled or not */
+    public static boolean isSMSPromptEnabled() {
+        boolean prompt = false;
+        int value = 0;
+        try {
+            value = Settings.Global.getInt(sContext.getContentResolver(),
+                    Settings.Global.MULTI_SIM_SMS_PROMPT);
+        } catch (SettingNotFoundException snfe) {
+            Rlog.e(LOG_TAG, "Settings Exception Reading Dual Sim SMS Prompt Values");
+        }
+        prompt = (value == 0) ? false : true ;
+        Rlog.d(LOG_TAG, "SMS Prompt option:" + prompt);
+
+       return prompt;
+    }
+
+    /*Sets User SMS Prompt property,  enable or not */
+    public static void setSMSPromptEnabled(boolean enabled) {
+        int value = (enabled == false) ? 0 : 1;
+        Settings.Global.putInt(sContext.getContentResolver(),
+                Settings.Global.MULTI_SIM_SMS_PROMPT, value);
+        Rlog.d(LOG_TAG, "setSMSPromptOption to " + enabled);
+    }
+
     /* Gets User preferred Data subscription setting*/
     public static int getDataSubscription() {
         int subscription = 0;

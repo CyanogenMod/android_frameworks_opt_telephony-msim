@@ -222,4 +222,12 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
     public int getPreferredSmsSubscription() {
         return MSimPhoneFactory.getSMSSubscription();
     }
+
+    /**
+     * Get SMS prompt property,  enabled or not
+     **/
+    public boolean isSMSPromptEnabled() {
+        return MSimPhoneFactory.isSMSPromptEnabled();
+    }
+
 }
