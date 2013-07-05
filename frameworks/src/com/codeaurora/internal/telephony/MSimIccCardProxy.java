@@ -26,6 +26,7 @@ import android.os.AsyncResult;
 import android.os.Message;
 import android.os.UserHandle;
 import android.telephony.MSimTelephonyManager;
+import android.telephony.TelephonyManager;
 import android.telephony.Rlog;
 
 import com.android.internal.telephony.CommandsInterface;
@@ -117,6 +118,12 @@ public class MSimIccCardProxy extends IccCardProxy {
                                     MccTable.countryCodeForMcc(Integer.parseInt(countryCode)));
                         } else {
                             loge("EVENT_RECORDS_LOADED Country code is null");
+                        }
+
+                        // Update MCC MNC device configuration information only for default sub.
+                        if (sub == TelephonyManager.getDefaultSubscription()) {
+                            log("Update mccmnc config for default subscription.");
+                            MccTable.updateMccMncConfiguration(mContext, operator);
                         }
                     } else {
                         loge("EVENT_RECORDS_LOADED Operator name is null");
