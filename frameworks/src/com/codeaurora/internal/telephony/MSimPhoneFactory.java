@@ -361,9 +361,25 @@ public class MSimPhoneFactory extends PhoneFactory {
     }
 
     static public void setDataSubscription(int subscription) {
+        boolean enabled;
+
         Settings.Global.putInt(sContext.getContentResolver(),
                 Settings.Global.MULTI_SIM_DATA_CALL_SUBSCRIPTION, subscription);
         Rlog.d(LOG_TAG, "setDataSubscription: " + subscription);
+
+        // Update the current mobile data flag
+        enabled = Settings.Global.getInt(sContext.getContentResolver(),
+                Settings.Global.MOBILE_DATA + subscription, 0) != 0;
+        Settings.Global.putInt(sContext.getContentResolver(),
+                Settings.Global.MOBILE_DATA, enabled ? 1 : 0);
+        Rlog.d(LOG_TAG, "set mobile_data: " + enabled);
+
+        // Update the current data roaming flag
+        enabled = Settings.Global.getInt(sContext.getContentResolver(),
+                Settings.Global.DATA_ROAMING + subscription, 0) != 0;
+        Settings.Global.putInt(sContext.getContentResolver(),
+                Settings.Global.DATA_ROAMING, enabled ? 1 : 0);
+        Rlog.d(LOG_TAG, "set data_roaming: " + enabled);
     }
 
     static public void setSMSSubscription(int subscription) {
