@@ -711,6 +711,9 @@ public class SubscriptionManager extends Handler {
             if (getCurrentSubscriptionStatus(subId) != SubscriptionStatus.SUB_ACTIVATED) {
                 subscription = getNextActiveSubscription(subscription);
                 MSimPhoneFactory.setSMSSubscription(subscription);
+                if (activeSubCount == 1) {
+                    MSimPhoneFactory.setSMSPromptEnabled(false);
+                }
             }
             logd("updateSubPreferences: current defaultSub = "
                     + MSimPhoneFactory.getDefaultSubscription());
