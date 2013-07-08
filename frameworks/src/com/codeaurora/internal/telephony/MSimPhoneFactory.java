@@ -32,6 +32,7 @@ import android.provider.Settings.SettingNotFoundException;
 
 import com.android.internal.telephony.BaseCommands;
 import com.android.internal.telephony.CommandsInterface;
+import com.android.internal.telephony.MccTable;
 import com.android.internal.telephony.MSimConstants;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneProxy;
@@ -223,6 +224,10 @@ public class MSimPhoneFactory extends PhoneFactory {
             sCommandsInterface = sCommandsInterfaces[subscription];
             sMadeDefaults = true;
         }
+
+        // Update MCC MNC device configuration information
+        String defaultMccMnc = MSimTelephonyManager.getDefault().getSimOperator(subscription);
+        MccTable.updateMccMncConfiguration(sContext, defaultMccMnc);
 
         // Broadcast an Intent for default sub change
         Intent intent = new Intent(MSimTelephonyIntents.ACTION_DEFAULT_SUBSCRIPTION_CHANGED);
