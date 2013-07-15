@@ -47,9 +47,11 @@ public class MSimIccProvider extends IccProvider {
 
     private static final int ADN_SUB1 = 1;
     private static final int ADN_SUB2 = 2;
-    private static final int FDN_SUB1 = 3;
-    private static final int FDN_SUB2 = 4;
-    private static final int SDN      = 5;
+    private static final int ADN_SUB3 = 3;
+    private static final int FDN_SUB1 = 4;
+    private static final int FDN_SUB2 = 5;
+    private static final int FDN_SUB3 = 6;
+    private static final int SDN      = 7;
     private static final int ADN_ALL  = 8;
 
     private static final UriMatcher URL_MATCHER =
@@ -58,9 +60,11 @@ public class MSimIccProvider extends IccProvider {
     static {
         URL_MATCHER.addURI("iccmsim", "adn", ADN_SUB1);
         URL_MATCHER.addURI("iccmsim", "adn_sub2", ADN_SUB2);
+        URL_MATCHER.addURI("iccmsim", "adn_sub3", ADN_SUB3);
         URL_MATCHER.addURI("iccmsim", "adn_all", ADN_ALL);
         URL_MATCHER.addURI("iccmsim", "fdn", FDN_SUB1);
         URL_MATCHER.addURI("iccmsim", "fdn_sub2", FDN_SUB2);
+        URL_MATCHER.addURI("iccmsim", "fdn_sub3", FDN_SUB3);
         URL_MATCHER.addURI("iccmsim", "sdn", SDN);
     }
 
@@ -74,6 +78,9 @@ public class MSimIccProvider extends IccProvider {
             case ADN_SUB2:
                 return loadFromEf(IccConstants.EF_ADN, MSimConstants.SUB2);
 
+            case ADN_SUB3:
+                return loadFromEf(IccConstants.EF_ADN, MSimConstants.SUB3);
+
             case ADN_ALL:
                 return loadAllSimContacts(IccConstants.EF_ADN);
 
@@ -82,6 +89,9 @@ public class MSimIccProvider extends IccProvider {
 
             case FDN_SUB2:
                 return loadFromEf(IccConstants.EF_FDN, MSimConstants.SUB2);
+
+            case FDN_SUB3:
+                return loadFromEf(IccConstants.EF_FDN, MSimConstants.SUB3);
 
             case SDN:
                 return loadFromEf(IccConstants.EF_SDN,
@@ -112,8 +122,10 @@ public class MSimIccProvider extends IccProvider {
         switch (URL_MATCHER.match(url)) {
             case ADN_SUB1:
             case ADN_SUB2:
+            case ADN_SUB3:
             case FDN_SUB1:
             case FDN_SUB2:
+            case FDN_SUB3:
             case SDN:
             case ADN_ALL:
                 return "vnd.android.cursor.dir/sim-contact";
@@ -144,8 +156,14 @@ public class MSimIccProvider extends IccProvider {
                 efType = IccConstants.EF_ADN;
                 break;
 
+            case ADN_SUB3:
+                subscription = MSimConstants.SUB3;
+                efType = IccConstants.EF_ADN;
+                break;
+
             case FDN_SUB1:
             case FDN_SUB2:
+            case FDN_SUB3:
                 efType = IccConstants.EF_FDN;
                 pin2 = initialValues.getAsString("pin2");
                 subscription = initialValues.getAsInteger(MSimConstants.SUBSCRIPTION_KEY);
@@ -175,12 +193,20 @@ public class MSimIccProvider extends IccProvider {
                 buf.append("adn_sub2/");
                 break;
 
+            case ADN_SUB3:
+                buf.append("adn_sub3/");
+                break;
+
             case FDN_SUB1:
                 buf.append("fdn/");
                 break;
 
             case FDN_SUB2:
                 buf.append("fdn_sub2/");
+                break;
+
+            case FDN_SUB3:
+                buf.append("fdn_sub3/");
                 break;
         }
 
@@ -218,6 +244,11 @@ public class MSimIccProvider extends IccProvider {
                 efType = IccConstants.EF_ADN;
                 break;
 
+            case ADN_SUB3:
+                subscription = MSimConstants.SUB3;
+                efType = IccConstants.EF_ADN;
+                break;
+
             case FDN_SUB1:
                 subscription = MSimConstants.SUB1;
                 efType = IccConstants.EF_FDN;
@@ -225,6 +256,11 @@ public class MSimIccProvider extends IccProvider {
 
             case FDN_SUB2:
                 subscription = MSimConstants.SUB2;
+                efType = IccConstants.EF_FDN;
+                break;
+
+            case FDN_SUB3:
+                subscription = MSimConstants.SUB3;
                 efType = IccConstants.EF_FDN;
                 break;
 
@@ -272,7 +308,8 @@ public class MSimIccProvider extends IccProvider {
             return 0;
         }
 
-        if (((efType == FDN_SUB1) || efType == FDN_SUB2) && TextUtils.isEmpty(pin2)) {
+        if (((efType == FDN_SUB1) || efType == FDN_SUB2 || efType == FDN_SUB3) &&
+            TextUtils.isEmpty(pin2)) {
             return 0;
         }
 
@@ -303,9 +340,14 @@ public class MSimIccProvider extends IccProvider {
                 subscription = MSimConstants.SUB2;
                 efType = IccConstants.EF_ADN;
                 break;
+            case ADN_SUB3:
+                subscription = MSimConstants.SUB3;
+                efType = IccConstants.EF_ADN;
+                break;
 
             case FDN_SUB1:
             case FDN_SUB2:
+            case FDN_SUB3:
                 efType = IccConstants.EF_FDN;
                 pin2 = values.getAsString("pin2");
                 subscription = values.getAsInteger(MSimConstants.SUBSCRIPTION_KEY);
