@@ -154,7 +154,6 @@ public class MSimIccCardProxy extends IccCardProxy {
         SubscriptionManager subMgr = SubscriptionManager.getInstance();
         mSubscriptionData = subMgr.getCurrentSubscription(mCardIndex);
 
-        resetProperties();
         updateIccAvailability();
         updateStateProperty();
     }
