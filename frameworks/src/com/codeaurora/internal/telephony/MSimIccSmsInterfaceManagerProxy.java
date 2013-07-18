@@ -107,6 +107,19 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
         }
     }
 
+    public void sendTextWithPriority(String destAddr, String scAddr, String text,
+            PendingIntent sentIntent, PendingIntent deliveryIntent,
+            int priority, int subscription) {
+        MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subscription);
+        if (iccSmsIntMgr != null) {
+            iccSmsIntMgr.sendTextWithPriority(destAddr, scAddr, text, sentIntent, deliveryIntent,
+                    priority);
+        } else {
+            Rlog.e(LOG_TAG, "sendText iccSmsIntMgr is null for" +
+                    " Subscription:" + subscription);
+        }
+    }
+
     public void sendMultipartText(String callingPackage, String destAddr, String scAddr,
             List<String> parts, List<PendingIntent> sentIntents,
             List<PendingIntent> deliveryIntents, int subscription)
