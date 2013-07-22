@@ -375,8 +375,10 @@ public final class MSimDcTracker extends DcTracker {
 
             if (mPhone instanceof MSimCDMALTEPhone) {
                 ((MSimCDMALTEPhone)mPhone).updateCurrentCarrierInProvider();
+                supplyMessenger();
             } else if (mPhone instanceof MSimGSMPhone) {
                 ((MSimGSMPhone)mPhone).updateCurrentCarrierInProvider();
+                supplyMessenger();
             } else {
                 log("Phone object is not MultiSim. This should not hit!!!!");
             }
@@ -413,6 +415,16 @@ public final class MSimDcTracker extends DcTracker {
             }
             return PhoneConstants.APN_REQUEST_FAILED;
         }
+    }
+
+    @Override
+    protected void supplyMessenger() {
+        // Supply the data connection tracker messenger only if
+        // this is corresponding to the current DDS.
+        if (!isActiveDataSubscription()) {
+            return;
+        }
+        super.supplyMessenger();
     }
 
     protected void notifyDataDisconnectComplete() {
