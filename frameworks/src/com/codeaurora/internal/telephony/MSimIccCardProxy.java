@@ -282,6 +282,11 @@ public class MSimIccCardProxy extends IccCardProxy {
     }
 
     @Override
+    protected void HandleDetectedState() {
+        setExternalState(State.DETECTED, false);
+    }
+
+    @Override
     protected void log(String msg) {
         if (DBG) Rlog.d(LOG_TAG, "[CardIndex:" + mCardIndex + "]" + msg);
     }
