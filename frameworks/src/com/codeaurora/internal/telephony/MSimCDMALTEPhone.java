@@ -362,6 +362,10 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                .registerForAllDataDisconnected(h, what, obj);
     }
 
+    public void cleanUpAllConnections(String cause) {
+        ((MSimDcTracker)mDcTracker).cleanUpAllConnections(cause);
+    }
+
     public void unregisterForAllDataDisconnected(Handler h) {
         ((MSimDcTracker)mDcTracker)
                 .unregisterForAllDataDisconnected(h);

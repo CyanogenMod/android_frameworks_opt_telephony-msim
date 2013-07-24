@@ -407,6 +407,7 @@ public class SubscriptionManager extends Handler {
             logd("Register for the all data disconnect");
             MSimProxyManager.getInstance().registerForAllDataDisconnected(mCurrentDds, this,
                     EVENT_ALL_DATA_DISCONNECTED, new Integer(mCurrentDds));
+            MSimProxyManager.getInstance().cleanUpAllConnections(mCurrentDds, null);
         } else {
             Rlog.d(LOG_TAG, "setDataSubscriptionSource Failed : ");
             // Reset the flag.
