@@ -147,6 +147,10 @@ public class MSimProxyManager {
         ((MSimPhoneProxy) mProxyPhones[sub]).registerForAllDataDisconnected(h, what, obj);
     }
 
+    public void cleanUpAllConnections (int sub, String cause) {
+        ((MSimPhoneProxy) mProxyPhones[sub]).cleanUpAllConnections(cause);
+    }
+
     public void unregisterForAllDataDisconnected(int sub, Handler h) {
         ((MSimPhoneProxy) mProxyPhones[sub]).unregisterForAllDataDisconnected(h);
     }
