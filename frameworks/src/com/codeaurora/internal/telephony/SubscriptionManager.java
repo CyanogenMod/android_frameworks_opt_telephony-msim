@@ -1219,7 +1219,6 @@ public class SubscriptionManager extends Handler {
         if (subStatus == SubscriptionStatus.SUB_ACTIVATED) {
             getCurrentSubscription(sub).copyFrom(subscription);
         } else {
-            getCurrentSubscription(sub).clear();
             // If not activated, mark as deactivated always!!
             subStatus = SubscriptionStatus.SUB_DEACTIVATED;
         }
