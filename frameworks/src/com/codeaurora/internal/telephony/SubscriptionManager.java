@@ -137,6 +137,7 @@ public class SubscriptionManager extends Handler {
 
     private RegistrantList[] mSubDeactivatedRegistrants;
     private RegistrantList[] mSubActivatedRegistrants;
+    private RegistrantList mDdsSwitchRegistrants;
 
     private Context mContext;
     private CommandsInterface[] mCi;
@@ -247,6 +248,7 @@ public class SubscriptionManager extends Handler {
 
         mSubDeactivatedRegistrants = new RegistrantList[mNumPhones];
         mSubActivatedRegistrants = new RegistrantList[mNumPhones];
+        mDdsSwitchRegistrants = new RegistrantList();
         for (int i = 0; i < mNumPhones; i++) {
             mSubDeactivatedRegistrants[i] = new RegistrantList();
             mSubActivatedRegistrants[i] = new RegistrantList();
@@ -407,7 +409,7 @@ public class SubscriptionManager extends Handler {
             logd("Register for the all data disconnect");
             MSimProxyManager.getInstance().registerForAllDataDisconnected(mCurrentDds, this,
                     EVENT_ALL_DATA_DISCONNECTED, new Integer(mCurrentDds));
-            MSimProxyManager.getInstance().cleanUpAllConnections(mCurrentDds, null);
+            mDdsSwitchRegistrants.notifyRegistrants();
         } else {
             Rlog.d(LOG_TAG, "setDataSubscriptionSource Failed : ");
             // Reset the flag.
@@ -519,6 +521,7 @@ public class SubscriptionManager extends Handler {
             // indication from the lower layers to mark the subscription as deactivated.
             if (subId == mCurrentDds) {
                 logd("Register for the all data disconnect");
+                mDdsSwitchRegistrants.notifyRegistrants();
                 MSimProxyManager.getInstance().registerForAllDataDisconnected(subId, this,
                         EVENT_ALL_DATA_DISCONNECTED, new Integer(subId));
             } else {
@@ -870,6 +873,9 @@ public class SubscriptionManager extends Handler {
 
             logd("updateActivatePendingList: cardIndex = " + cardIndex
                     + "\n Card Sub Info = " + cardSubInfo);
+            if (cardSubInfo == null) {
+                return;
+            }
 
             Subscription userSub = mUserPrefSubs.subscription[cardIndex];
             int subId = userSub.subId;
@@ -1447,6 +1453,19 @@ public class SubscriptionManager extends Handler {
     public void unregisterForSubscriptionDeactivated(int subId, Handler h) {
         synchronized (mSubDeactivatedRegistrants[subId]) {
             mSubDeactivatedRegistrants[subId].remove(h);
+        }
+    }
+
+    public void registerForDdsSwitch(Handler h, int what, Object obj) {
+        Registrant r = new Registrant (h, what, obj);
+        synchronized (mDdsSwitchRegistrants) {
+            mDdsSwitchRegistrants.add(r);
+        }
+    }
+
+    public void unregisterForDdsSwitch(Handler h) {
+        synchronized (mDdsSwitchRegistrants) {
+            mDdsSwitchRegistrants.remove(h);
         }
     }
 

@@ -91,6 +91,8 @@ public final class MSimDcTracker extends DcTracker {
                 DctConstants.EVENT_PS_RESTRICT_ENABLED, null);
         mPhone.getServiceStateTracker().registerForPsRestrictedDisabled(this,
                 DctConstants.EVENT_PS_RESTRICT_DISABLED, null);
+        SubscriptionManager.getInstance().registerForDdsSwitch(this,
+               DctConstants.EVENT_CLEAN_UP_ALL_CONNECTIONS, null);
     }
 
     protected void unregisterForAllEvents() {
@@ -111,6 +113,7 @@ public final class MSimDcTracker extends DcTracker {
         mPhone.getServiceStateTracker().unregisterForRoamingOff(this);
         mPhone.getServiceStateTracker().unregisterForPsRestrictedEnabled(this);
         mPhone.getServiceStateTracker().unregisterForPsRestrictedDisabled(this);
+        SubscriptionManager.getInstance().unregisterForDdsSwitch(this);
     }
 
     @Override
@@ -123,6 +126,14 @@ public final class MSimDcTracker extends DcTracker {
             case DctConstants.EVENT_SET_INTERNAL_DATA_ENABLE:
                 boolean enabled = (msg.arg1 == DctConstants.ENABLED) ? true : false;
                 onSetInternalDataEnabled(enabled, (Message) msg.obj);
+                break;
+
+            case DctConstants.EVENT_CLEAN_UP_ALL_CONNECTIONS:
+                Message mCause = obtainMessage(DctConstants.EVENT_CLEAN_UP_ALL_CONNECTIONS, null);
+                if ((msg.obj != null) && (msg.obj instanceof String)) {
+                    mCause.obj = msg.obj;
+                }
+                super.handleMessage(mCause);
                 break;
 
             default:
