@@ -35,8 +35,9 @@ import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.MccTable;
 import com.android.internal.telephony.MSimConstants;
 import com.android.internal.telephony.Phone;
-import com.android.internal.telephony.PhoneProxy;
+import com.android.internal.telephony.PhoneBase;
 import com.android.internal.telephony.PhoneFactory;
+import com.android.internal.telephony.PhoneProxy;
 import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.RILConstants;
 import com.android.internal.telephony.sip.SipPhone;
@@ -61,6 +62,8 @@ public class MSimPhoneFactory extends PhoneFactory {
     static private CardSubscriptionManager mCardSubscriptionManager;
     static private SubscriptionManager mSubscriptionManager;
     static private MSimUiccController mUiccController;
+
+    static private DefaultPhoneProxy sDefaultPhoneProxy = null;
 
     //***** Class Methods
 
@@ -153,16 +156,22 @@ public class MSimPhoneFactory extends PhoneFactory {
                         mUiccController, sCommandsInterfaces);
 
                 for (int i = 0; i < numPhones; i++) {
+                    PhoneBase phone = null;
                     int phoneType = TelephonyManager.getPhoneType(networkModes[i]);
                     if (phoneType == PhoneConstants.PHONE_TYPE_GSM) {
-                        Rlog.i(LOG_TAG, "Creating MSimGSMPhone sub = " + i);
-                        sProxyPhones[i] = new MSimPhoneProxy(new MSimGSMPhone(context,
-                                sCommandsInterfaces[i], sPhoneNotifier, i));
+                        phone = new MSimGSMPhone(context,
+                                sCommandsInterfaces[i], sPhoneNotifier, i);
                     } else if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
-                        Rlog.i(LOG_TAG, "Creating MSimCDMALTEPhone sub = " + i);
-                        sProxyPhones[i] = new MSimPhoneProxy(new MSimCDMALTEPhone(context,
-                                sCommandsInterfaces[i], sPhoneNotifier, i));
+                        phone = new MSimCDMALTEPhone(context,
+                                sCommandsInterfaces[i], sPhoneNotifier, i);
                     }
+                    Rlog.i(LOG_TAG, "Creating Phone with type = " + phoneType + " sub = " + i);
+
+                    if (sDefaultPhoneProxy == null) {
+                        sDefaultPhoneProxy = new DefaultPhoneProxy(phone);
+                    }
+
+                    sProxyPhones[i] = new MSimPhoneProxy(phone);
                 }
                 mMSimProxyManager = MSimProxyManager.getInstance(context, sProxyPhones,
                         mUiccController, sCommandsInterfaces);
@@ -173,6 +182,10 @@ public class MSimPhoneFactory extends PhoneFactory {
                 sProxyPhone = sProxyPhones[MSimConstants.DEFAULT_SUBSCRIPTION];
                 sCommandsInterface = sCommandsInterfaces[MSimConstants.DEFAULT_SUBSCRIPTION];
                 sMadeDefaults = true;
+
+                sDefaultPhoneProxy.updateDefaultPhoneInSubInfo(sProxyPhone);
+                sDefaultPhoneProxy.updateDefaultSMSIntfManager(getSMSSubscription());
+
             }
         }
     }
@@ -224,6 +237,9 @@ public class MSimPhoneFactory extends PhoneFactory {
             sCommandsInterface = sCommandsInterfaces[subscription];
             sMadeDefaults = true;
         }
+
+        // Update the subinfo corresponds to the current defaut phone
+        sDefaultPhoneProxy.updatePhoneSubInfo(sProxyPhone.getPhoneSubInfo());
 
         // Update MCC MNC device configuration information
         String defaultMccMnc = MSimTelephonyManager.getDefault().getSimOperator(subscription);
@@ -401,6 +417,10 @@ public class MSimPhoneFactory extends PhoneFactory {
 
         Intent intent = new Intent("com.android.mms.transaction.SEND_MESSAGE");
         sContext.sendBroadcast(intent);
+
+        // Change occured in SMS preferred sub, update the default
+        // SMS interface Manager object with the new SMS preferred subscription.
+        sDefaultPhoneProxy.updateDefaultSMSIntfManager(subscription);
         Rlog.d(LOG_TAG, "setSMSSubscription : " + subscription);
     }
 
