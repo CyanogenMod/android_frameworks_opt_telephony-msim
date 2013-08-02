@@ -189,6 +189,7 @@ public class MSimIccCardProxy extends IccCardProxy {
                 mUiccApplication = newApp;
                 mIccRecords = newRecords;
                 registerUiccCardEvents();
+                updateActiveRecord();
             }
 
             updateExternalState();
