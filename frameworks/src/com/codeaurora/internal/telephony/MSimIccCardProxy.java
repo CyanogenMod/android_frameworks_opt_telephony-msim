@@ -209,10 +209,8 @@ public class MSimIccCardProxy extends IccCardProxy {
     }
 
     private void updateStateProperty() {
-        if (mSubscriptionData != null) {
-            MSimTelephonyManager.setTelephonyProperty
-                (PROPERTY_SIM_STATE, mSubscriptionData.subId, getState().toString());
-        }
+        MSimTelephonyManager.setTelephonyProperty(PROPERTY_SIM_STATE,
+                SubscriptionManager.getInstance().getSlotId(mCardIndex),getState().toString());
     }
 
     @Override

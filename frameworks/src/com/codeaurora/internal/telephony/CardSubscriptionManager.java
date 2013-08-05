@@ -487,6 +487,95 @@ public class CardSubscriptionManager extends Handler {
         sendMessage(msg);
     }
 
+   public boolean is3gppApp(int slotId, int appIndex) {
+        CardInfo cardInfo = mUiccCardList.get(slotId);
+        if (cardInfo != null) {
+            UiccCard uiccCard = cardInfo.getUiccCard();
+            if (uiccCard != null) {
+                UiccCardApplication uiccCardApplication = uiccCard.getApplicationIndex(appIndex);
+                if (uiccCardApplication != null) {
+                    String subAppType = appTypetoString(uiccCardApplication.getType());
+                    if (subAppType.equals("SIM") || subAppType.equals("USIM")) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+   }
+
+   public boolean is3gpp2App(int slotId, int appIndex) {
+        CardInfo cardInfo = mUiccCardList.get(slotId);
+        if (cardInfo != null) {
+            UiccCard uiccCard = cardInfo.getUiccCard();
+            if (uiccCard != null) {
+                UiccCardApplication uiccCardApplication = uiccCard.getApplicationIndex(appIndex);
+                if (uiccCardApplication != null) {
+                    String subAppType = appTypetoString(uiccCardApplication.getType());
+                    if (subAppType.equals("CSIM") || subAppType.equals("RUIM")) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+   }
+
+    /** get the AppIndex of first SIM/USIM app and
+     *  first CSIM/RUIM app.
+     */
+
+    public int[] getGlobalAppsIndex(int slotId) {
+        CardInfo cardInfo = mUiccCardList.get(slotId);
+        int[] globalAppsIndex = new int[2];
+        if (cardInfo != null) {
+            UiccCard uiccCard = cardInfo.getUiccCard();
+            if (uiccCard != null) {
+                int numApps = uiccCard.getNumApplications();
+                boolean isGsmApp = true, isCdmaApp = true;
+                for (int appIndex = 0, index = 0; appIndex < numApps; appIndex++) {
+                    UiccCardApplication uiccCardApp = uiccCard.getApplicationIndex(appIndex);
+                    if (uiccCardApp != null) {
+                        String subAppType = appTypetoString(uiccCardApp.getType());
+                        if ((subAppType.equals("SIM") || subAppType.equals("USIM"))
+                            && isGsmApp) {
+                            globalAppsIndex[index] = appIndex;
+                            isGsmApp = false;
+                            index++;
+                        }
+                        if ((subAppType.equals("CSIM") || subAppType.equals("RUIM"))
+                            && isCdmaApp) {
+                            globalAppsIndex[index] = appIndex;
+                            isCdmaApp = false;
+                            index++;
+                        }
+                    }
+                }
+            }
+        }
+        return globalAppsIndex;
+    }
+
+
+    private boolean isGlobalmodeSupported(Integer cardIndex, UiccCard uiccCard, int numApps) {
+        boolean isGsmApp = false, isCdmaApp = false, isGlobalmode = false;
+        if (cardIndex == 0 && uiccCard != null) {
+            for (int appIndex = 0; appIndex < numApps; appIndex++) {
+                UiccCardApplication uiccCardApplication = uiccCard.getApplicationIndex(appIndex);
+                if (uiccCardApplication != null) {
+                    String subAppType = appTypetoString(uiccCardApplication.getType());
+                    if (subAppType.equals("SIM") || subAppType.equals("USIM")) {
+                        isGsmApp = true;
+                    }
+                    if (subAppType.equals("CSIM") || subAppType.equals("RUIM")) {
+                        isCdmaApp = true;
+                    }
+                }
+            }
+            isGlobalmode = isGsmApp && isCdmaApp;
+       }
+       return isGlobalmode;
+    }
 
     /**
      *  Update the UICC status.
@@ -519,8 +608,13 @@ public class CardSubscriptionManager extends Handler {
                     + " cardInfo = " + cardInfo);
 
             int numApps = 0;
+            boolean isGlobalmode = false;
             if (cardState == CardState.CARDSTATE_PRESENT) {
                 numApps = uiccCard.getNumApplications();
+                isGlobalmode = isGlobalmodeSupported(cardIndex, uiccCard, numApps);
+                if (isGlobalmode) {
+                    numApps++;
+                }
             }
             logd("onUpdateUiccStatus(): Number of apps : " + numApps);
 
@@ -550,12 +644,18 @@ public class CardSubscriptionManager extends Handler {
                         // Not required to set subId or subStatus.
                         // cardSub.subId = Subscription.SUBSCRIPTION_INDEX_INVALID;
                         // cardSub.subStatus = Subscription.SubcriptionStatus.SUB_INVALID;
-                        cardSub.appId = uiccCardApplication.getAid();
-                        cardSub.appLabel = uiccCardApplication.getAppLabel();
+                        if (uiccCardApplication != null) {
+                            cardSub.appId = uiccCardApplication.getAid();
+                            cardSub.appLabel = uiccCardApplication.getAppLabel();
+                        }
                         cardSub.iccId = cardInfo.getIccId();
-
-                        AppType type = uiccCardApplication.getType();
-                        String subAppType = appTypetoString(type);
+                        String subAppType;
+                        if (uiccCardApplication == null && isGlobalmode) {
+                            subAppType = "GLOBAL";
+                        } else {
+                            AppType type = uiccCardApplication.getType();
+                            subAppType = appTypetoString(type);
+                        }
                         //Apps like ISIM etc are treated as UNKNOWN apps, to be discarded
                         if (!subAppType.equals("UNKNOWN")) {
                             cardSub.appType = subAppType;
@@ -567,17 +667,20 @@ public class CardSubscriptionManager extends Handler {
                         // In case of MultiSIM, APPSTATE_READY should not come before selecting
                         // the subscriptions from UI.
                         // Show a warning message in this case.
-                        if (uiccCardApplication.getState() == AppState.APPSTATE_READY) {
-                            loge("**************************************************************" +
-                                    "********************");
-                            loge("AppState of the UiccCardApplication @ cardIndex:" + cardIndex +
-                                    " appIndex:" + appIndex + " is APPSTATE_READY!!!!!");
-                            loge("Android expectes APPSTATE_DETECTED before selecting the" +
-                                    " subscriptions!!!!!");
-                            loge("WARNING!!! Please configure the NV items properly to " +
-                                    "select the subscriptions from UI");
-                            loge("************************************************************" +
-                                    "*************************");
+                        if (uiccCardApplication != null) {
+                            if (uiccCardApplication.getState() == AppState.APPSTATE_READY) {
+                                loge("***********************************************************" +
+                                        "********************");
+                                loge("AppState of the UiccCardApplication @ cardIndex:" +
+                                        cardIndex + " appIndex:" + appIndex +
+                                        " is APPSTATE_READY!!!!!");
+                                loge("Android expectes APPSTATE_DETECTED before selecting the" +
+                                        " subscriptions!!!!!");
+                                loge("WARNING!!! Please configure the NV items properly to " +
+                                        "select the subscriptions from UI");
+                                loge("***********************************************************" +
+                                        "*************************");
+                            }
                         }
 
                         fillAppIndex(cardSub, appIndex);
@@ -625,7 +728,8 @@ public class CardSubscriptionManager extends Handler {
         } else if (cardSub.appType.equals("SIM") || cardSub.appType.equals("USIM")) {
             cardSub.m3gppIndex = appIndex;
             cardSub.m3gpp2Index = Subscription.SUBSCRIPTION_INDEX_INVALID;
-        } else if (cardSub.appType.equals("RUIM") || cardSub.appType.equals("CSIM")) {
+        } else if (cardSub.appType.equals("RUIM") || cardSub.appType.equals("CSIM")
+                || cardSub.appType.equals("GLOBAL")) {
             cardSub.m3gppIndex = Subscription.SUBSCRIPTION_INDEX_INVALID;
             cardSub.m3gpp2Index = appIndex;
         }

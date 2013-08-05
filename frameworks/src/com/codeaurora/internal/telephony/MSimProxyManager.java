@@ -135,7 +135,8 @@ public class MSimProxyManager {
             ((PhoneProxy) mProxyPhones[subId])
                 .updatePhoneObject(ServiceState.RIL_RADIO_TECHNOLOGY_GSM);
         } else if ((userSub.appType.equals("RUIM")
-                || userSub.appType.equals("CSIM"))
+                || userSub.appType.equals("CSIM")
+                || userSub.appType.equals("GLOBAL"))
                 && (!mProxyPhones[subId].getPhoneName().equals("CDMA"))) {
             logd("gets New CDMA phone" );
             ((PhoneProxy) mProxyPhones[subId])

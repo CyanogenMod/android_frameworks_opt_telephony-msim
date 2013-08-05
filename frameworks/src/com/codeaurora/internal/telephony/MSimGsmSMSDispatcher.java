@@ -47,13 +47,11 @@ final class MSimGsmSMSDispatcher extends GsmSMSDispatcher {
     protected UiccCardApplication getUiccCardApplication() {
         SubscriptionManager subMgr = SubscriptionManager.getInstance();
         if (subMgr != null) {
-            Subscription subscriptionData = subMgr.getCurrentSubscription(mPhone.getSubscription());
-            if (subscriptionData != null) {
-                Rlog.d(TAG, "MSimGsmSMSDispatcher: subId = " + mPhone.getSubscription()
-                        + " slotId = " + subscriptionData.slotId);
-                return  ((MSimUiccController) mUiccController).getUiccCardApplication(
-                        subscriptionData.slotId, UiccController.APP_FAM_3GPP);
-            }
+            Rlog.d(TAG, "MSimGsmSMSDispatcher: subId = " + mPhone.getSubscription()
+                    + " slotId = " + mPhone.getSubscription());
+            return  ((MSimUiccController) mUiccController).getUiccCardApplication(
+                    SubscriptionManager.getInstance().getSlotId(mPhone.getSubscription()),
+                    UiccController.APP_FAM_3GPP);
         }
         return null;
     }

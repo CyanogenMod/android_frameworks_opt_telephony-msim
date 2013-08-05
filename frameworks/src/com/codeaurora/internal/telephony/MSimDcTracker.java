@@ -250,21 +250,15 @@ public final class MSimDcTracker extends DcTracker {
 
     @Override
     protected IccRecords getUiccCardApplication() {
-        Subscription subscriptionData = null;
-        int appType = UiccController.APP_FAM_3GPP;
-
-        if (mPhone instanceof MSimCDMALTEPhone) {
-            subscriptionData = ((MSimCDMALTEPhone)mPhone).getSubscriptionInfo();
-            appType = UiccController.APP_FAM_3GPP2;
-        } else if (mPhone instanceof MSimGSMPhone) {
-            subscriptionData = ((MSimGSMPhone)mPhone).getSubscriptionInfo();
-            appType = UiccController.APP_FAM_3GPP;
+        if (mPhone instanceof MSimGSMPhone) {
+            int appType = UiccController.APP_FAM_3GPP;
+            return  ((MSimUiccController)mUiccController).getIccRecords(SubscriptionManager.
+                getInstance().getSlotId(((MSimGSMPhone)mPhone).getSubscription()), appType);
+        } else if (mPhone instanceof MSimCDMALTEPhone) {
+            int appType = UiccController.APP_FAM_3GPP2;
+            return  ((MSimUiccController)mUiccController).getIccRecords(SubscriptionManager.
+                getInstance().getSlotId(((MSimCDMALTEPhone)mPhone).getSubscription()), appType);
         }
-
-        if(subscriptionData != null) {
-            return  ((MSimUiccController)mUiccController).getIccRecords(subscriptionData.slotId, appType);
-        }
-
         return null;
     }
 
