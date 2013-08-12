@@ -197,6 +197,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
     private void onSubscriptionDeactivated() {
         log("SUBSCRIPTION DEACTIVATED");
         // resetSubSpecifics
+        setVoiceMessageCount(0);
         mSubscriptionData = null;
     }
 
