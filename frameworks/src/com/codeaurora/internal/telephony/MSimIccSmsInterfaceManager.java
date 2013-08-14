@@ -41,4 +41,9 @@ public class MSimIccSmsInterfaceManager extends IccSmsInterfaceManager {
         mDispatcher = new MSimImsSMSDispatcher(mPhone,
                 mPhone.mSmsStorageMonitor, mPhone.mSmsUsageMonitor);
     }
+
+    @Override
+    protected void updatePhoneObject(PhoneBase phone) {
+        super.updatePhoneObject(phone);
+    }
 }
