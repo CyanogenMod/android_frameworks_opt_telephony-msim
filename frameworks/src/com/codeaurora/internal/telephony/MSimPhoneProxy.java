@@ -151,16 +151,6 @@ public class MSimPhoneProxy extends PhoneProxy {
         }
     }
 
-    public void cleanUpAllConnections(String cause){
-        if (mActivePhone instanceof MSimCDMALTEPhone) {
-            ((MSimCDMALTEPhone)mActivePhone).cleanUpAllConnections(cause);
-        } else if (mActivePhone instanceof MSimGSMPhone) {
-            ((MSimGSMPhone)mActivePhone).cleanUpAllConnections(cause);
-        } else {
-            loge("Phone object is not MultiSim. This should not hit!!!!");
-        }
-    }
-
     public void unregisterForAllDataDisconnected(Handler h) {
         if (mActivePhone instanceof MSimCDMALTEPhone) {
             ((MSimCDMALTEPhone)mActivePhone).unregisterForAllDataDisconnected(h);
