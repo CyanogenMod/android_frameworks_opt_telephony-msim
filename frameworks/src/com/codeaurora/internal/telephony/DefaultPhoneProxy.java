@@ -46,11 +46,11 @@ import com.android.internal.telephony.PhoneSubInfo;
 public class DefaultPhoneProxy {
     static final String LOG_TAG = "DefaultPhoneProxy";
 
-    static private MSimIccSmsInterfaceManager sDefaultIccSmsInterfaceManager = null;
+    static private MSimDefaultIccSmsInterfaceManager sDefaultIccSmsInterfaceManager = null;
     static private DefaultPhoneSubInfoProxy sDefaultPhoneSubInfoProxy = null;
 
     public DefaultPhoneProxy(Phone phone) {
-        sDefaultIccSmsInterfaceManager = new MSimIccSmsInterfaceManager((PhoneBase)phone);
+        sDefaultIccSmsInterfaceManager = new MSimDefaultIccSmsInterfaceManager();
         sDefaultPhoneSubInfoProxy = new DefaultPhoneSubInfoProxy(phone.getPhoneSubInfo());
     }
 
@@ -70,14 +70,14 @@ public class DefaultPhoneProxy {
         }
     }
 
-    // Update SMS preferred subscription in MSimIccSmsInterfaceManager
+    // Update SMS preferred subscription in MSimDefaultIccSmsInterfaceManager
     public void updateDefaultSMSIntfManager(int subscription) {
         if (sDefaultIccSmsInterfaceManager != null) {
             MSimPhoneProxy phone = (MSimPhoneProxy) MSimPhoneFactory.getPhone(subscription);
 
             Rlog.d(LOG_TAG, "updateDefaultSMSIntfManager: sub = " + subscription);
             // Update the defaut phone in object
-            sDefaultIccSmsInterfaceManager.updatePhoneObject((PhoneBase)phone.getActivePhone());
+            sDefaultIccSmsInterfaceManager.updatePhoneProxyObject(phone);
         }
     }
 }
