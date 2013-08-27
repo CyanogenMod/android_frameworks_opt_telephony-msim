@@ -141,6 +141,14 @@ public class MSimPhoneFactory extends PhoneFactory {
                                 " Settings.Global.PREFERRED_NETWORK_MODE");
                         networkModes[i] = preferredNetworkMode;
                     }
+
+                    if (SystemProperties.getBoolean("persist.env.phone.global", false) &&
+                            i == MSimConstants.SUB1) {
+                        networkModes[i] = Phone.NT_MODE_LTE_CMDA_EVDO_GSM_WCDMA;
+                        MSimTelephonyManager.putIntAtIndex( context.getContentResolver(),
+                            Settings.Global.PREFERRED_NETWORK_MODE, i, networkModes[i]);
+                    }
+
                     Rlog.i(LOG_TAG, "Network Mode set to " + Integer.toString(networkModes[i]));
                     sCommandsInterfaces[i] = new RIL(context, networkModes[i],
                             cdmaSubscription, i);
