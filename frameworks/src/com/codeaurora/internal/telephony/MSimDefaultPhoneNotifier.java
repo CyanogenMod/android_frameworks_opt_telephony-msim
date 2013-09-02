@@ -18,6 +18,8 @@
 
 package com.codeaurora.telephony.msim;
 
+import android.content.Context;
+import android.content.Intent;
 import android.net.LinkCapabilities;
 import android.net.LinkProperties;
 import android.os.Bundle;
@@ -28,9 +30,12 @@ import android.telephony.MSimTelephonyManager;
 import android.telephony.Rlog;
 import android.telephony.ServiceState;
 import android.telephony.TelephonyManager;
+import android.text.TextUtils;
 
 import com.android.internal.telephony.Call;
+import com.android.internal.telephony.CallManager;
 import com.android.internal.telephony.DefaultPhoneNotifier;
+import com.android.internal.telephony.MSimConstants;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.ITelephonyRegistry;
 import com.android.internal.telephony.ITelephonyRegistryMSim;
@@ -64,10 +69,63 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
         try {
             mMSimRegistry.notifyCallState(
                     convertCallState(sender.getState()), incomingNumber, subscription);
-            mRegistry.notifyCallState(convertCallState(sender.getState()), incomingNumber);
         } catch (RemoteException ex) {
             // system process is dead
         }
+        notifyCallStateToTelephonyRegistry(sender);
+    }
+
+    /*
+     *  Suppose, some third party app e.g. FM app registers for a call state changed indication
+     *  through TelephonyManager/PhoneStateListener and an incoming call is received on sub1 or
+     *  sub2. Then ir-respective of sub1/sub2 FM app should be informed of call state
+     *  changed(onCallStateChanged()) indication so that FM app can be paused.
+     *  Hence send consolidated call state information to apps. (i.e. sub1 or sub2 active
+     *  call state,  in priority order RINGING > OFFHOOK > IDLE)
+     */
+    public void notifyCallStateToTelephonyRegistry(Phone sender) {
+        Call ringingCall = null;
+        CallManager cm = CallManager.getInstance();
+        PhoneConstants.State state = sender.getState();
+        String incomingNumber = "";
+        for (Phone phone : cm.getAllPhones()) {
+            if (phone.getState() == PhoneConstants.State.RINGING) {
+                ringingCall = phone.getRingingCall();
+                if (ringingCall != null && ringingCall.getEarliestConnection() != null) {
+                    incomingNumber = ringingCall.getEarliestConnection().getAddress();
+                }
+                sender = phone;
+                state = PhoneConstants.State.RINGING;
+                break;
+            } else if (phone.getState() == PhoneConstants.State.OFFHOOK) {
+                if (state == PhoneConstants.State.IDLE) {
+                    state = PhoneConstants.State.OFFHOOK;
+                    sender = phone;
+                }
+            }
+        }
+        log("notifyCallStateToTelephonyRegistry, subscription = " + sender.getSubscription()
+                + " state = " + state);
+        try {
+            mRegistry.notifyCallState(convertCallState(state), incomingNumber);
+        } catch (RemoteException ex) {
+            // system process is dead
+        }
+        broadcastCallStateChanged(convertCallState(state), incomingNumber, sender);
+    }
+
+    private void broadcastCallStateChanged(int state, String incomingNumber, Phone phone) {
+        int subscription = phone.getSubscription();
+        log("broadcastCallStateChanged, subscription = " + subscription);
+        Intent intent = new Intent(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+        intent.putExtra(PhoneConstants.STATE_KEY,
+                DefaultPhoneNotifier.convertCallState(state).toString());
+        if (!TextUtils.isEmpty(incomingNumber)) {
+            intent.putExtra(TelephonyManager.EXTRA_INCOMING_NUMBER, incomingNumber);
+        }
+        intent.putExtra(MSimConstants.SUBSCRIPTION_KEY, subscription);
+        phone.getContext().sendBroadcast(intent,
+                android.Manifest.permission.READ_PHONE_STATE);
     }
 
     @Override
@@ -80,7 +138,9 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
         }
         try {
             mMSimRegistry.notifyServiceState(ss, subscription);
-            mRegistry.notifyServiceState(ss);
+            if (MSimPhoneFactory.getDefaultSubscription() == subscription) {
+                mRegistry.notifyServiceState(ss);
+            }
         } catch (RemoteException ex) {
             // system process is dead
         }
@@ -91,7 +151,9 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
         int subscription = sender.getSubscription();
         try {
             mMSimRegistry.notifySignalStrength(sender.getSignalStrength(), subscription);
-            mRegistry.notifySignalStrength(sender.getSignalStrength());
+            if (MSimPhoneFactory.getDefaultSubscription() == subscription) {
+                mRegistry.notifySignalStrength(sender.getSignalStrength());
+            }
         } catch (RemoteException ex) {
             // system process is dead
         }
@@ -104,7 +166,9 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
             mMSimRegistry.notifyMessageWaitingChanged(
                     sender.getMessageWaitingIndicator(),
                     subscription);
-            mRegistry.notifyMessageWaitingChanged(sender.getMessageWaitingIndicator());
+            if (MSimPhoneFactory.getDefaultSubscription() == subscription) {
+                mRegistry.notifyMessageWaitingChanged(sender.getMessageWaitingIndicator());
+            }
         } catch (RemoteException ex) {
             // system process is dead
         }
@@ -117,8 +181,10 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
             mMSimRegistry.notifyCallForwardingChanged(
                     sender.getCallForwardingIndicator(),
                     subscription);
-            mRegistry.notifyCallForwardingChanged(
-                    sender.getCallForwardingIndicator());
+            if (MSimPhoneFactory.getDefaultSubscription() == subscription) {
+                mRegistry.notifyCallForwardingChanged(
+                        sender.getCallForwardingIndicator());
+            }
         } catch (RemoteException ex) {
             // system process is dead
         }
@@ -146,10 +212,6 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
         int subscription = sender.getSubscription();
         int dds = MSimPhoneFactory.getDataSubscription();
         log("subscription = " + subscription + ", DDS = " + dds);
-        if (subscription != dds) {
-            // This is not the current DDS, do not notify data connection state
-            return;
-        }
 
         // TODO
         // use apnType as the key to which connection we're talking about.
@@ -167,7 +229,7 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
         if (ss != null) roaming = ss.getRoaming();
 
         try {
-            mMSimRegistry.notifyDataConnection(
+            mRegistry.notifyDataConnection(
                     convertDataState(state),
                     sender.isDataConnectivityPossible(apnType), reason,
                     sender.getActiveApnHost(apnType),
@@ -177,7 +239,7 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
                     ((telephony!=null) ? telephony.getDataNetworkType(subscription) :
                     TelephonyManager.NETWORK_TYPE_UNKNOWN),
                     roaming);
-            mRegistry.notifyDataConnection(
+            mMSimRegistry.notifyDataConnection(
                     convertDataState(state),
                     sender.isDataConnectivityPossible(apnType), reason,
                     sender.getActiveApnHost(apnType),
@@ -209,7 +271,9 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
         sender.getCellLocation().fillInNotifierBundle(data);
         try {
             mMSimRegistry.notifyCellLocation(data, subscription);
-            mRegistry.notifyCellLocation(data);
+            if (MSimPhoneFactory.getDefaultSubscription() == subscription) {
+                mRegistry.notifyCellLocation(data);
+            }
         } catch (RemoteException ex) {
             // system process is dead
         }
@@ -220,7 +284,9 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
         int subscription = sender.getSubscription();
         try {
             mMSimRegistry.notifyCellInfo(cellInfo, subscription);
-            mRegistry.notifyCellInfo(cellInfo);
+            if (MSimPhoneFactory.getDefaultSubscription() == subscription) {
+                mRegistry.notifyCellInfo(cellInfo);
+            }
         } catch (RemoteException ex) {
 
         }
@@ -228,9 +294,12 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
 
     @Override
     public void notifyOtaspChanged(Phone sender, int otaspMode) {
+        int subscription = sender.getSubscription();
         try {
             mMSimRegistry.notifyOtaspChanged(otaspMode);
-            mRegistry.notifyOtaspChanged(otaspMode);
+            if (MSimPhoneFactory.getDefaultSubscription() == subscription) {
+                mRegistry.notifyOtaspChanged(otaspMode);
+            }
         } catch (RemoteException ex) {
             // system process is dead
         }
