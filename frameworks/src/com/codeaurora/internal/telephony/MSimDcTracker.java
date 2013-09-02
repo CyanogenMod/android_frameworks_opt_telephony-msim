@@ -26,6 +26,7 @@ import android.os.Message;
 import android.os.RegistrantList;
 import android.provider.Settings;
 import android.telephony.Rlog;
+import android.telephony.ServiceState;
 
 import com.android.internal.telephony.DctConstants;
 import com.android.internal.telephony.dataconnection.ApnContext;
@@ -261,16 +262,20 @@ public final class MSimDcTracker extends DcTracker {
 
     @Override
     protected IccRecords getUiccCardApplication() {
-        if (mPhone instanceof MSimGSMPhone) {
-            int appType = UiccController.APP_FAM_3GPP;
-            return  ((MSimUiccController)mUiccController).getIccRecords(SubscriptionManager.
-                getInstance().getSlotId(((MSimGSMPhone)mPhone).getSubscription()), appType);
-        } else if (mPhone instanceof MSimCDMALTEPhone) {
-            int appType = UiccController.APP_FAM_3GPP2;
-            return  ((MSimUiccController)mUiccController).getIccRecords(SubscriptionManager.
-                getInstance().getSlotId(((MSimCDMALTEPhone)mPhone).getSubscription()), appType);
+        int dataRat = mPhone.getServiceState().getRilDataRadioTechnology();
+        int appType = -1;
+        IccRecords rec = null;
+        log("getUiccCardApplication: dataRat=" + ServiceState.rilRadioTechnologyToString(dataRat));
+        if (ServiceState.isGsm(dataRat) || dataRat == ServiceState.RIL_RADIO_TECHNOLOGY_EHRPD) {
+            appType = UiccController.APP_FAM_3GPP;
+        } else if (ServiceState.isCdma(dataRat)) {
+            appType = UiccController.APP_FAM_3GPP2;
         }
-        return null;
+        if (appType != -1) {
+            rec = ((MSimUiccController)mUiccController).getIccRecords(
+                    SubscriptionManager.getInstance().getSlotId(mPhone.getSubscription()), appType);
+        }
+        return rec;
     }
 
     @Override
