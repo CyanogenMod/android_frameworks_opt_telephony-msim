@@ -176,6 +176,11 @@ public class MSimIccProvider extends IccProvider {
 
         String tag = initialValues.getAsString("tag");
         String number = initialValues.getAsString("number");
+        /*As part of 3GPP 51.011, number field is mandatory while storing in the
+          SIM for both ADN and FDN */
+        if (TextUtils.isEmpty(number)) {
+            return null;
+        }
         // TODO(): Read email instead of sending null.
         boolean success = addIccRecordToEf(efType, tag, number, null, pin2, subscription);
 
@@ -302,10 +307,6 @@ public class MSimIccProvider extends IccProvider {
             } else if (STR_PIN2.equals(key)) {
                 pin2 = normalizeValue(val);
             }
-        }
-
-        if (TextUtils.isEmpty(number)) {
-            return 0;
         }
 
         if (((efType == FDN_SUB1) || efType == FDN_SUB2 || efType == FDN_SUB3) &&
