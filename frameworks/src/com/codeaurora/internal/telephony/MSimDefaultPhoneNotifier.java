@@ -248,7 +248,8 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
                     linkCapabilities,
                     ((telephony!=null) ? telephony.getDataNetworkType(subscription) :
                     TelephonyManager.NETWORK_TYPE_UNKNOWN),
-                    roaming);
+                    roaming,
+                    subscription);
         } catch (RemoteException ex) {
             // system process is dead
         }
@@ -256,8 +257,9 @@ public class MSimDefaultPhoneNotifier extends DefaultPhoneNotifier {
 
     @Override
     public void notifyDataConnectionFailed(Phone sender, String reason, String apnType) {
+        int subscription = sender.getSubscription();
         try {
-            mMSimRegistry.notifyDataConnectionFailed(reason, apnType);
+            mMSimRegistry.notifyDataConnectionFailed(reason, apnType, subscription);
             mRegistry.notifyDataConnectionFailed(reason, apnType);
         } catch (RemoteException ex) {
             // system process is dead
