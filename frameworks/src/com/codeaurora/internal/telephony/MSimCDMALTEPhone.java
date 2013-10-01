@@ -56,6 +56,7 @@ import com.android.internal.telephony.PhoneSubInfo;
 import com.android.internal.telephony.ServiceStateTracker;
 import com.android.internal.telephony.TelephonyProperties;
 import com.android.internal.telephony.TelephonyIntents;
+import com.android.internal.telephony.uicc.UiccCard;
 import com.android.internal.telephony.uicc.UiccController;
 import com.android.internal.telephony.uicc.UiccCardApplication;
 import com.android.internal.telephony.uicc.IccRecords;
@@ -424,10 +425,24 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
     }
 
     @Override
+    protected void setCardInPhoneBook() {
+        if (mUiccController == null || mSubscriptionData == null) {
+            return;
+        }
+
+        UiccCard card = ((MSimUiccController)mUiccController).getUiccCard(mSubscriptionData.slotId);
+        mRuimPhoneBookInterfaceManager.setIccCard(card);
+    }
+
+    @Override
     protected void onUpdateIccAvailability() {
         if (mUiccController == null ) {
             return;
         }
+
+        // Get the latest info on the card and
+        // send this to Phone Book
+        setCardInPhoneBook();
 
         UiccCardApplication newUiccApplication = getUiccCardApplication();
 
@@ -437,7 +452,6 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                 log("Removing stale icc objects.");
                 if (mIccRecords.get() != null) {
                     unregisterForRuimRecordEvents();
-                    mRuimPhoneBookInterfaceManager.updateIccRecords(null);
                 }
                 mIccRecords.set(null);
                 mUiccApplication.set(null);
@@ -447,7 +461,6 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                 mUiccApplication.set(newUiccApplication);
                 mIccRecords.set(newUiccApplication.getIccRecords());
                 registerForRuimRecordEvents();
-                mRuimPhoneBookInterfaceManager.updateIccRecords(mIccRecords.get());
             }
         }
     }
