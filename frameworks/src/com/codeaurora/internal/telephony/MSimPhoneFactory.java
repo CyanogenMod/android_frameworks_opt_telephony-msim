@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2006 The Android Open Source Project
  * Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  * Not a Contribution.
+ * Copyright (C) 2006 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,12 @@
 
 package com.codeaurora.telephony.msim;
 
+import android.app.AppOpsManager;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.net.LocalServerSocket;
 import android.os.Looper;
 import android.os.UserHandle;
@@ -31,6 +36,7 @@ import android.content.Intent;
 import android.provider.Settings.SettingNotFoundException;
 
 import com.android.internal.telephony.BaseCommands;
+import com.android.internal.telephony.cdma.CdmaSubscriptionSourceManager;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.MccTable;
 import com.android.internal.telephony.MSimConstants;
@@ -40,6 +46,7 @@ import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.PhoneProxy;
 import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.RILConstants;
+import com.android.internal.telephony.SmsApplication;
 import com.android.internal.telephony.sip.SipPhone;
 import com.android.internal.telephony.sip.SipPhoneFactory;
 import com.android.internal.telephony.uicc.UiccController;
@@ -115,11 +122,8 @@ public class MSimPhoneFactory extends PhoneFactory {
                     preferredNetworkMode = Phone.NT_MODE_GLOBAL;
                 }
 
-                // Get cdmaSubscription mode from Settings.Global
-                int cdmaSubscription;
-                cdmaSubscription = Settings.Global.getInt(context.getContentResolver(),
-                                Settings.Global.CDMA_SUBSCRIPTION_MODE,
-                                sPreferredCdmaSubscription);
+               int cdmaSubscription = CdmaSubscriptionSourceManager.getDefault(context);
+
                 Rlog.i(LOG_TAG, "Cdma Subscription set to " + cdmaSubscription);
 
                 /* In case of multi SIM mode two instances of PhoneProxy, RIL are created,
@@ -193,6 +197,16 @@ public class MSimPhoneFactory extends PhoneFactory {
 
                 sDefaultPhoneProxy.updateDefaultPhoneInSubInfo(sProxyPhone);
                 sDefaultPhoneProxy.updateDefaultSMSIntfManager(getSMSSubscription());
+
+                // Ensure that we have a default SMS app. Requesting the app with
+                // updateIfNeeded set to true is enough to configure a default SMS app.
+                ComponentName componentName =
+                        SmsApplication.getDefaultSmsApplication(context, true /* updateIfNeeded */);
+                String packageName = "NONE";
+                if (componentName != null) {
+                    packageName = componentName.getPackageName();
+                }
+                Rlog.i(LOG_TAG, "defaultSmsApplication: " + packageName);
 
             }
         }
@@ -378,19 +392,6 @@ public class MSimPhoneFactory extends PhoneFactory {
         return subscription;
     }
 
-    /* Gets User preferred Priority subscription setting*/
-    public static int getPrioritySubscription() {
-        int subscription = 0;
-        try {
-            subscription = Settings.Global.getInt(sContext.getContentResolver(),
-                    Settings.Global.MULTI_SIM_PRIORITY_SUBSCRIPTION);
-        } catch (SettingNotFoundException snfe) {
-            Rlog.e(LOG_TAG, "Settings Exception Reading Dual Sim Priority Subscription Values");
-        }
-
-        return subscription;
-    }
-
     static public void setVoiceSubscription(int subscription) {
         Settings.Global.putInt(sContext.getContentResolver(),
                 Settings.Global.MULTI_SIM_VOICE_CALL_SUBSCRIPTION, subscription);
@@ -431,17 +432,4 @@ public class MSimPhoneFactory extends PhoneFactory {
         sDefaultPhoneProxy.updateDefaultSMSIntfManager(subscription);
         Rlog.d(LOG_TAG, "setSMSSubscription : " + subscription);
     }
-
-    static public void setPrioritySubscription(int subscription) {
-        Settings.Global.putInt(sContext.getContentResolver(),
-                Settings.Global.MULTI_SIM_PRIORITY_SUBSCRIPTION, subscription);
-        Rlog.d(LOG_TAG, "setPrioritySubscription: " + subscription);
-    }
-
-    static public void setTuneAway(boolean tuneAway) {
-        Settings.Global.putInt(sContext.getContentResolver(),
-                Settings.Global.TUNE_AWAY_STATUS, tuneAway ? 1 : 0);
-        Rlog.d(LOG_TAG, "setTuneAway: " + tuneAway);
-    }
-
 }

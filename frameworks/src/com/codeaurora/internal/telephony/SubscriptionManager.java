@@ -825,7 +825,6 @@ public class SubscriptionManager extends Handler {
             if (getCurrentSubscriptionStatus(subId) != SubscriptionStatus.SUB_ACTIVATED) {
                 subscription = getNextActiveSubscription(subscription);
                 MSimPhoneFactory.setVoiceSubscription(subscription);
-                MSimPhoneFactory.setPrioritySubscription(subscription);
                 if (activeSubCount == 1) {
                     MSimPhoneFactory.setPromptEnabled(false);
                 }
@@ -1787,15 +1786,6 @@ public class SubscriptionManager extends Handler {
     }
 
     private void sendDefaultSubsInfo () {
-        int prioritySub = MSimPhoneFactory.getPrioritySubscription();
-        int defaultVoiceSub = MSimPhoneFactory.getVoiceSubscription();
-
-        Rlog.d(LOG_TAG, " Multi Sim Subscription: priority sub = " + prioritySub +
-                "default voice sub = " + defaultVoiceSub);
-        Message msgPrioritySub = Message.obtain(this, EVENT_SET_PRIORITY_SUBSCRIPTION_DONE, null);
-        Message msgDefaultVoiceSub = Message.obtain(this,
-                EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE, null);
-        mCi[MSimConstants.SUB1].setPrioritySub(prioritySub, msgPrioritySub);
-        mCi[MSimConstants.SUB1].setDefaultVoiceSub(defaultVoiceSub, msgDefaultVoiceSub);
+    //TODO: DSDA
     }
 }

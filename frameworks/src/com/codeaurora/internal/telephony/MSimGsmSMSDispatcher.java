@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2006 The Android Open Source Project
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  * Not a Contribution.
+ * Copyright (C) 2006 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import com.android.internal.telephony.uicc.UiccController;
 import com.android.internal.telephony.MSimConstants;
 import com.android.internal.telephony.PhoneBase;
 import com.android.internal.telephony.gsm.GsmSMSDispatcher;
+import com.android.internal.telephony.gsm.GsmInboundSmsHandler;
 import com.android.internal.telephony.SmsStorageMonitor;
 import com.android.internal.telephony.SmsUsageMonitor;
 import com.android.internal.telephony.uicc.UiccCardApplication;
@@ -37,9 +38,9 @@ import com.android.internal.telephony.ImsSMSDispatcher;
 final class MSimGsmSMSDispatcher extends GsmSMSDispatcher {
     private static final String TAG = "GSM";
 
-    public MSimGsmSMSDispatcher(PhoneBase phone, SmsStorageMonitor storageMonitor,
-            SmsUsageMonitor usageMonitor, ImsSMSDispatcher imsSMSDispatcher) {
-        super(phone, storageMonitor, usageMonitor, imsSMSDispatcher);
+    public MSimGsmSMSDispatcher(PhoneBase phone, SmsUsageMonitor usageMonitor,
+            ImsSMSDispatcher imsSMSDispatcher, GsmInboundSmsHandler gsmInboundSmsHandler) {
+        super(phone, usageMonitor, imsSMSDispatcher, gsmInboundSmsHandler);
         Rlog.d(TAG, "MSimGsmSMSDispatcher created");
     }
 
@@ -56,57 +57,5 @@ final class MSimGsmSMSDispatcher extends GsmSMSDispatcher {
         return null;
     }
 
-    /**
-     * Dispatches standard PDUs to interested applications
-     *
-     * @param pdus The raw PDUs making up the message
-     */
-    @Override
-    protected void dispatchPdus(byte[][] pdus) {
-        Intent intent = new Intent(Intents.SMS_RECEIVED_ACTION);
-        intent.putExtra("pdus", pdus);
-        intent.putExtra("format", getFormat());
-        intent.putExtra(MSimConstants.SUBSCRIPTION_KEY,
-                 mPhone.getSubscription()); //Subscription information to be passed in an intent
-        dispatch(intent, RECEIVE_SMS_PERMISSION, AppOpsManager.OP_RECEIVE_SMS);
-    }
-
-    /**
-     * Dispatches port addressed PDUs to interested applications
-     *
-     * @param pdus The raw PDUs making up the message
-     * @param port The destination port of the messages
-     */
-    @Override
-    protected void dispatchPortAddressedPdus(byte[][] pdus, int port) {
-        Uri uri = Uri.parse("sms://localhost:" + port);
-        Intent intent = new Intent(Intents.DATA_SMS_RECEIVED_ACTION, uri);
-        intent.putExtra("pdus", pdus);
-        intent.putExtra("format", getFormat());
-        intent.putExtra(MSimConstants.SUBSCRIPTION_KEY,
-                 mPhone.getSubscription()); //Subscription information to be passed in an intent
-        dispatch(intent, RECEIVE_SMS_PERMISSION, AppOpsManager.OP_RECEIVE_SMS);
-    }
-
-    /**
-     * Dispatches cell broadcast  to interested applications
-     *
-     * @param message The destination message of cell broadcast
-     */
-    @Override
-    protected void dispatchBroadcastMessage(SmsCbMessage message) {
-        if (message.isEmergencyMessage()) {
-            Intent intent = new Intent(Intents.SMS_EMERGENCY_CB_RECEIVED_ACTION);
-            intent.putExtra("message", message);
-            intent.putExtra(MSimConstants.SUBSCRIPTION_KEY,
-                    mPhone.getSubscription()); //Subscription information to be passed in an intent
-            dispatch(intent, RECEIVE_EMERGENCY_BROADCAST_PERMISSION, AppOpsManager.OP_RECEIVE_SMS);
-        } else {
-            Intent intent = new Intent(Intents.SMS_CB_RECEIVED_ACTION);
-            intent.putExtra("message", message);
-            intent.putExtra(MSimConstants.SUBSCRIPTION_KEY,
-                    mPhone.getSubscription()); //Subscription information to be passed in an intent
-            dispatch(intent, RECEIVE_SMS_PERMISSION, AppOpsManager.OP_RECEIVE_SMS);
-        }
-    }
 }
+

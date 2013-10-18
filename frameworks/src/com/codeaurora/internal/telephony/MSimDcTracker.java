@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2006 The Android Open Source Project
  * Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  * Not a Contribution.
+ * Copyright (C) 2006 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -261,21 +261,9 @@ public final class MSimDcTracker extends DcTracker {
     }
 
     @Override
-    protected IccRecords getUiccCardApplication() {
-        int dataRat = mPhone.getServiceState().getRilDataRadioTechnology();
-        int appType = -1;
-        IccRecords rec = null;
-        log("getUiccCardApplication: dataRat=" + ServiceState.rilRadioTechnologyToString(dataRat));
-        if (ServiceState.isGsm(dataRat) || dataRat == ServiceState.RIL_RADIO_TECHNOLOGY_EHRPD) {
-            appType = UiccController.APP_FAM_3GPP;
-        } else if (ServiceState.isCdma(dataRat)) {
-            appType = UiccController.APP_FAM_3GPP2;
-        }
-        if (appType != -1) {
-            rec = ((MSimUiccController)mUiccController).getIccRecords(
-                    SubscriptionManager.getInstance().getSlotId(mPhone.getSubscription()), appType);
-        }
-        return rec;
+    protected IccRecords getUiccRecords(int appFamily) {
+        return ((MSimUiccController)mUiccController).getIccRecords(
+                SubscriptionManager.getInstance().getSlotId(mPhone.getSubscription()), appFamily);
     }
 
     @Override
