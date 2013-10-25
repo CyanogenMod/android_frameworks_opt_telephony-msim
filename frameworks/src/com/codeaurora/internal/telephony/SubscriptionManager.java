@@ -1058,7 +1058,8 @@ public class SubscriptionManager extends Handler {
         for (int i = 0; i < mNumPhones; i++) {
             SubscriptionId sub = SubscriptionId.values()[i];
             Subscription actPendingSub = mActivatePending.get(sub);
-            if (userSub != null && userSub.isSame(actPendingSub)) {
+            if (userSub != null && userSub.isSame(actPendingSub)
+                    && userSub.subId == actPendingSub.subId) {
                 return true;
             }
         }
