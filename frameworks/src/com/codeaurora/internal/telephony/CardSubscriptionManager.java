@@ -815,8 +815,8 @@ public class CardSubscriptionManager extends Handler {
 
     public boolean isCardAbsentOrError(int cardIndex) {
         CardInfo cardInfo = mUiccCardList.get(cardIndex);
-        return ((cardInfo.getCardState() == CardState.CARDSTATE_ABSENT)
-                || (cardInfo.getCardState() == CardState.CARDSTATE_ERROR));
+
+        return (cardInfo.getCardState() != CardState.CARDSTATE_PRESENT);
     }
 
     public boolean isAllCardsUpdated() {
