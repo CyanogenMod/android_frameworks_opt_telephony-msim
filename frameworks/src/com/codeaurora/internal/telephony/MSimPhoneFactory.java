@@ -451,4 +451,11 @@ public class MSimPhoneFactory extends PhoneFactory {
                 Settings.Global.MULTI_SIM_PRIORITY_SUBSCRIPTION, subscription);
         Rlog.d(LOG_TAG, "setPrioritySubscription: " + subscription);
     }
+
+    static public void setTuneAway(boolean tuneAway) {
+        Settings.Global.putInt(sContext.getContentResolver(),
+                Settings.Global.TUNE_AWAY_STATUS, tuneAway ? 1 : 0);
+        Rlog.d(LOG_TAG, "setTuneAway: " + tuneAway);
+    }
+
 }
