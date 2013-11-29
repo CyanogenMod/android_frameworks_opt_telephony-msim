@@ -823,9 +823,6 @@ public class SubscriptionManager extends Handler {
             if (getCurrentSubscriptionStatus(subId) != SubscriptionStatus.SUB_ACTIVATED) {
                 subscription = getNextActiveSubscription(subscription);
                 MSimPhoneFactory.setVoiceSubscription(subscription);
-                if (activeSubCount == 1) {
-                    MSimPhoneFactory.setPromptEnabled(false);
-                }
                 MSimPhoneFactory.setPrioritySubscription(subscription);
             }
             subscription = MSimPhoneFactory.getSMSSubscription();
@@ -833,9 +830,11 @@ public class SubscriptionManager extends Handler {
             if (getCurrentSubscriptionStatus(subId) != SubscriptionStatus.SUB_ACTIVATED) {
                 subscription = getNextActiveSubscription(subscription);
                 MSimPhoneFactory.setSMSSubscription(subscription);
-                if (activeSubCount == 1) {
-                    MSimPhoneFactory.setSMSPromptEnabled(false);
-                }
+            }
+            //Disable Prompt mode if only one sub is active.
+            if (activeSubCount == 1) {
+                MSimPhoneFactory.setPromptEnabled(false);
+                MSimPhoneFactory.setSMSPromptEnabled(false);
             }
             sendDefaultSubsInfo();
 
@@ -1058,7 +1057,8 @@ public class SubscriptionManager extends Handler {
         for (int i = 0; i < mNumPhones; i++) {
             SubscriptionId sub = SubscriptionId.values()[i];
             Subscription actPendingSub = mActivatePending.get(sub);
-            if (userSub != null && userSub.isSame(actPendingSub)) {
+            if (userSub != null && userSub.isSame(actPendingSub)
+                    && userSub.subId == actPendingSub.subId) {
                 return true;
             }
         }
