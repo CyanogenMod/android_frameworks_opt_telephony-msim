@@ -434,6 +434,8 @@ public final class MSimDcTracker extends DcTracker {
     }
 
     protected void notifyAllDataDisconnected() {
+        sEnableFailFastRefCounter = 0;
+        mFailFast = false;
         mAllDataDisconnectedRegistrants.notifyRegistrants();
     }
 
@@ -442,7 +444,7 @@ public final class MSimDcTracker extends DcTracker {
 
         if (isDisconnected()) {
             log("notify All Data Disconnected");
-            mAllDataDisconnectedRegistrants.notifyRegistrants();
+            notifyAllDataDisconnected();
         }
     }
 
