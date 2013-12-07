@@ -156,14 +156,15 @@ public final class MSimDcTracker extends DcTracker {
      *
      */
     @Override
-    protected void cleanUpAllConnections(boolean tearDown, String reason) {
-        super.cleanUpAllConnections(tearDown, reason);
+    protected boolean cleanUpAllConnections(boolean tearDown, String reason) {
+        boolean didDisconnect = super.cleanUpAllConnections(tearDown, reason);
 
         log("cleanUpConnection: mDisconnectPendingCount = " + mDisconnectPendingCount);
         if (tearDown && mDisconnectPendingCount == 0) {
             notifyDataDisconnectComplete();
             notifyAllDataDisconnected();
         }
+        return didDisconnect;
     }
 
     @Override
