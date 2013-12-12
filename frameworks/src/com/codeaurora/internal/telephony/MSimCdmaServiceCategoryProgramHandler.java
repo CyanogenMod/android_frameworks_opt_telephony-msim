@@ -37,8 +37,6 @@ import java.util.ArrayList;
 
 public final class MSimCdmaServiceCategoryProgramHandler extends CdmaServiceCategoryProgramHandler {
 
-    private PhoneBase mPhone;
-
     MSimCdmaServiceCategoryProgramHandler(Context context, PhoneBase phone) {
         super(context, phone.mCi);
         mPhone = phone;
@@ -50,10 +48,6 @@ public final class MSimCdmaServiceCategoryProgramHandler extends CdmaServiceCate
                 context, phone);
         handler.start();
         return handler;
-    }
-
-    public void updatePhoneObject(PhoneBase phone) {
-        mPhone = phone;
     }
 
     /**

@@ -27,6 +27,7 @@ import com.android.internal.telephony.cat.CatCmdMessage;
 import com.android.internal.telephony.cat.CatLog;
 import com.android.internal.telephony.cat.CatService;
 import com.android.internal.telephony.CommandsInterface;
+import com.android.internal.telephony.uicc.IccCardApplicationStatus.AppType;
 import com.android.internal.telephony.uicc.IccCardStatus.CardState;
 import com.android.internal.telephony.uicc.IccFileHandler;
 import com.android.internal.telephony.uicc.IccRecords;
@@ -112,10 +113,13 @@ public class MSimCatService extends CatService {
             /* Since Cat is not tied to any application, but rather is Uicc application
              * in itself - just get first FileHandler and IccRecords object
              */
-            ca = ic.getApplicationIndex(0);
-            if (ca != null) {
-                fh = ca.getIccFileHandler();
-                ir = ca.getIccRecords();
+            for (int i = 0; i < ic.getNumApplications(); i++) {
+                ca = ic.getApplicationIndex(i);
+                if (ca != null && (ca.getType() != AppType.APPTYPE_UNKNOWN)) {
+                    fh = ca.getIccFileHandler();
+                    ir = ca.getIccRecords();
+                    break;
+                }
             }
         }
 
