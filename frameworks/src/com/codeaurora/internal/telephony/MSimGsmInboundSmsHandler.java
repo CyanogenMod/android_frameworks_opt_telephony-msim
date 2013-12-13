@@ -46,7 +46,7 @@ public class MSimGsmInboundSmsHandler extends GsmInboundSmsHandler {
 
     @Override
     protected void init(Context context, PhoneBase phone) {
-            mCellBroadcastDispatcher = MSimGsmCellBroadcastHandler.makeMSimGsmCellBroadcastHandler(
+            mCellBroadcastHandler = MSimGsmCellBroadcastHandler.makeMSimGsmCellBroadcastHandler(
             context, phone);
     }
 
