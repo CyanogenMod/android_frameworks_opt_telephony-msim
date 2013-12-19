@@ -175,7 +175,7 @@ public class SubscriptionManager extends Handler {
     private int mCurrentDds;
     private int mQueuedDds;
     private int mCurrentAppId;
-    private boolean mDisableDdsInProgress;
+    private boolean mDisableDdsInProgress = false;
 
     private boolean mSetSubscriptionInProgress = false;
 
@@ -404,7 +404,6 @@ public class SubscriptionManager extends Handler {
         logd("processAllDataDisconnected: subscriptionReadiness[" + sub + "] = "
                 + getCurrentSubscriptionReadiness(subId));
         if (!getCurrentSubscriptionReadiness(subId)) {
-            resetCurrentSubscription(subId);
             // Update the subscription preferences
             updateSubPreferences();
             notifySubscriptionDeactivated(sub);
@@ -501,7 +500,9 @@ public class SubscriptionManager extends Handler {
     private void processSubscriptionStatusChanged(AsyncResult ar) {
         Integer subId = (Integer)ar.userObj;
         int actStatus = ((int[])ar.result)[0];
-        logd("handleSubscriptionStatusChanged sub = " + subId
+        SubscriptionId sub = SubscriptionId.values()[subId];
+        boolean isSubReady = mCurrentSubscriptions.get(sub).subReady;
+        logd("processSubscriptionStatusChanged sub = " + subId
                 + " actStatus = " + actStatus);
 
         if (!mRadioOn[subId]) {
@@ -509,8 +510,16 @@ public class SubscriptionManager extends Handler {
            return;
         }
 
+        if ((isSubReady == true && actStatus == SUB_STATUS_ACTIVATED) ||
+                (isSubReady == false && actStatus == SUB_STATUS_DEACTIVATED)) {
+            logd("processSubscriptionStatusChanged: CurrentSubStatus and NewSubStatus are same" +
+                    "for subId = "+subId+". Ignore indication!!!");
+            return;
+        }
+
         updateSubscriptionReadiness(subId, (actStatus == SUB_STATUS_ACTIVATED));
         if (actStatus == SUB_STATUS_ACTIVATED) { // Subscription Activated
+            mCardSubMgr.setSubActivated(subId, true);
             // Shall update the DDS here
             if (mSetDdsRequired) {
                 if (subId == mCurrentDds) {
@@ -528,7 +537,7 @@ public class SubscriptionManager extends Handler {
             }
             notifySubscriptionActivated(subId);
         } else if (actStatus == SUB_STATUS_DEACTIVATED) {
-            // Subscription is deactivated from below layers.
+            mCardSubMgr.setSubActivated(subId, false);
             // In case if this is DDS subscription, then wait for the all data disconnected
             // indication from the lower layers to mark the subscription as deactivated.
             if (subId == mCurrentDds) {
@@ -537,7 +546,6 @@ public class SubscriptionManager extends Handler {
                 MSimProxyManager.getInstance().registerForAllDataDisconnected(subId, this,
                         EVENT_ALL_DATA_DISCONNECTED, new Integer(subId));
             } else {
-                resetCurrentSubscription(SubscriptionId.values()[subId]);
                 updateSubPreferences();
                 notifySubscriptionDeactivated(subId);
                 triggerUpdateFromAvaialbleCards();
@@ -1363,6 +1371,7 @@ public class SubscriptionManager extends Handler {
         }
         // Subscription is not activated.  So irrespective of the ready, set to false.
         mCurrentSubscriptions.get(sub).subReady = false;
+        getCurrentSubscription(sub).subStatus = SubscriptionStatus.SUB_DEACTIVATED;
     }
 
     /**

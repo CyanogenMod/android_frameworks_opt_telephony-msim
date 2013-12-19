@@ -34,11 +34,8 @@ import com.android.internal.telephony.PhoneBase;
 
 public class MSimCdmaCellBroadcastHandler extends CellBroadcastHandler {
 
-    private PhoneBase mPhone;
-
     protected MSimCdmaCellBroadcastHandler(Context context, PhoneBase phone) {
-        super(context);
-        mPhone = phone;
+        super("MSimCdmaCellBroadcastHandler", context, phone);
     }
 
     public static MSimCdmaCellBroadcastHandler makeMSimCdmaCellBroadcastHandler(Context context,
@@ -46,10 +43,6 @@ public class MSimCdmaCellBroadcastHandler extends CellBroadcastHandler {
         MSimCdmaCellBroadcastHandler handler = new MSimCdmaCellBroadcastHandler(context, phone);
         handler.start();
         return handler;
-    }
-
-    public void updatePhoneObject(PhoneBase phone) {
-        mPhone = phone;
     }
 
     /**
