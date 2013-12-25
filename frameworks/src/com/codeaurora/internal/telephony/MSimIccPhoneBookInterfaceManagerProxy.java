@@ -18,6 +18,7 @@
 
 package com.codeaurora.telephony.msim;
 
+import android.content.ContentValues;
 import android.os.ServiceManager;
 import android.os.RemoteException;
 import android.telephony.Rlog;
@@ -55,6 +56,20 @@ public class MSimIccPhoneBookInterfaceManagerProxy extends IIccPhoneBookMSim.Stu
         } else {
             Rlog.e(TAG,"updateAdnRecordsInEfBySearch iccPbkIntMgrProxy is" +
                       " null for Subscription:"+subscription);
+            return false;
+        }
+    }
+
+    public boolean updateAdnRecordsInEfBySearchOnSubscription(int efid, ContentValues values,
+            String pin2, int subscription) throws android.os.RemoteException {
+        IccPhoneBookInterfaceManagerProxy iccPbkIntMgrProxy =
+                getIccPhoneBookInterfaceManagerProxy(subscription);
+        if (iccPbkIntMgrProxy != null) {
+            return iccPbkIntMgrProxy.updateAdnRecordsWithContentValuesInEfBySearch(efid, values,
+                    pin2);
+        } else {
+            Rlog.e(TAG, "updateAdnRecordsInEfBySearchOnSubscription iccPbkIntMgrProxy is"
+                    + " null for Subscription:" + subscription);
             return false;
         }
     }
@@ -120,5 +135,81 @@ public class MSimIccPhoneBookInterfaceManagerProxy extends IIccPhoneBookMSim.Stu
 
     private int getDefaultSubscription() {
         return MSimPhoneFactory.getDefaultSubscription();
+    }
+
+    public int getAnrCount(int subscription) throws android.os.RemoteException {
+        IccPhoneBookInterfaceManagerProxy iccPbkIntMgrProxy =
+                getIccPhoneBookInterfaceManagerProxy(subscription);
+        if (iccPbkIntMgrProxy != null) {
+            return iccPbkIntMgrProxy.getAnrCount();
+        } else {
+            Rlog.e(TAG, "getAnrCount iccPbkIntMgrProxy is"
+                    + "null for Subscription:" + subscription);
+            return 0;
+        }
+    }
+
+    public int getEmailCount(int subscription) throws android.os.RemoteException {
+        IccPhoneBookInterfaceManagerProxy iccPbkIntMgrProxy =
+                getIccPhoneBookInterfaceManagerProxy(subscription);
+        if (iccPbkIntMgrProxy != null) {
+            return iccPbkIntMgrProxy.getEmailCount();
+        } else {
+            Rlog.e(TAG, "getEmailCount iccPbkIntMgrProxy is"
+                    + "null for Subscription:" + subscription);
+            return 0;
+        }
+    }
+
+    public int getSpareAnrCount(int subscription) throws android.os.RemoteException {
+        IccPhoneBookInterfaceManagerProxy iccPbkIntMgrProxy =
+                getIccPhoneBookInterfaceManagerProxy(subscription);
+        if (iccPbkIntMgrProxy != null) {
+            return iccPbkIntMgrProxy.getSpareAnrCount();
+        } else {
+            Rlog.e(TAG, "getSpareAnrCount iccPbkIntMgrProxy is"
+                    + "null for Subscription:" + subscription);
+            return 0;
+        }
+    }
+
+    public int getSpareEmailCount(int subscription) throws android.os.RemoteException {
+        IccPhoneBookInterfaceManagerProxy iccPbkIntMgrProxy =
+                getIccPhoneBookInterfaceManagerProxy(subscription);
+        if (iccPbkIntMgrProxy != null) {
+            return iccPbkIntMgrProxy.getSpareEmailCount();
+        } else {
+            Rlog.e(TAG, "getSpareEmailCount iccPbkIntMgrProxy is"
+                    + "null for Subscription:" + subscription);
+            return 0;
+        }
+    }
+
+    public boolean updateUsimAdnRecordsInEfByIndex(int efid, String newTag,
+            String newPhoneNumber, String[] anrNumbers, String[] emails, int index, String pin2,
+            int subscription)
+            throws android.os.RemoteException {
+        IccPhoneBookInterfaceManagerProxy iccPbkIntMgrProxy =
+                getIccPhoneBookInterfaceManagerProxy(subscription);
+        if (iccPbkIntMgrProxy != null) {
+            return iccPbkIntMgrProxy.updateUsimAdnRecordsInEfByIndex(efid, newTag, newPhoneNumber,
+                    anrNumbers, emails, index, pin2);
+        } else {
+            Rlog.e(TAG, "updateUsimAdnRecordsInEfByIndex iccPbkIntMgrProxy is"
+                    + " null for Subscription:" + subscription);
+            return false;
+        }
+    }
+
+    public int getAdnCount(int subscription) throws android.os.RemoteException {
+        IccPhoneBookInterfaceManagerProxy iccPbkIntMgrProxy =
+                getIccPhoneBookInterfaceManagerProxy(subscription);
+        if (iccPbkIntMgrProxy != null) {
+            return iccPbkIntMgrProxy.getAdnCount();
+        } else {
+            Rlog.e(TAG, "getAdnCount iccPbkIntMgrProxy is"
+                    + "null for Subscription:" + subscription);
+            return 0;
+        }
     }
 }
