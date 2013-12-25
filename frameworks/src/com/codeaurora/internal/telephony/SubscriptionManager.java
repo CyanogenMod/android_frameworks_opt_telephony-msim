@@ -373,6 +373,57 @@ public class SubscriptionManager extends Handler {
     }
 
     /**
+     * set the APP of the SIM card
+     *
+     * @param cardIndex card index
+     * @return
+     */
+    public Subscription setDefaultApp(int cardIndex) {
+        SubscriptionData cardSub = mCardSubMgr.getCardSubscriptions(cardIndex);
+        // app info is not available
+        if (cardSub == null || cardSub.getLength() == 0) {
+            return null;
+        }
+
+        // try to find the index of the highest priority APP Global > (RUIM/USIM) > (CSIM/SIM)
+        int appIndex = Subscription.SUBSCRIPTION_INDEX_INVALID;
+        for (int i = 0; i < cardSub.getLength(); i++) {
+
+            String appType = cardSub.subscription[i].appType;
+            logd("find the " + appType + " appIndex " + i);
+
+            if ("GLOBAL".equals(appType)) {
+                appIndex = i;
+                break;
+            } else if ("RUIM".equals(appType) || "USIM".equals(appType)) {
+                //if there are multiple apps of USIM/RUIM, will set the appIndex to first USIM/RUIM
+                if (appIndex != Subscription.SUBSCRIPTION_INDEX_INVALID) {
+                    String lastAppType = cardSub.subscription[appIndex].appType;
+                    if (("RUIM".equals(lastAppType) || "USIM".equals(lastAppType)))
+                        continue;
+                }
+                appIndex = i;
+            } else if (("CSIM".equals(appType) || "SIM".equals(appType))
+                    && appIndex == Subscription.SUBSCRIPTION_INDEX_INVALID) {
+                appIndex = i;
+            }
+        }
+
+        // can not find RUIM/USIM/CSIM/SIM/GLOBAL APP
+        if (appIndex == Subscription.SUBSCRIPTION_INDEX_INVALID) {
+            return null;
+        }
+
+        Subscription subInCard = cardSub.subscription[appIndex];
+        Subscription sub = new Subscription();
+        sub.copyFrom(subInCard);
+        sub.slotId = cardIndex;
+        sub.subId = cardIndex;
+        sub.subStatus = SubscriptionStatus.SUB_ACTIVATE;
+        return sub;
+    }
+
+    /**
      * Handles EVENT_ALL_DATA_DISCONNECTED.
      * This method invoked in case of modem initiated subscription deactivation.
      * Subscription deactivated notification already received and all the data
@@ -1008,6 +1059,14 @@ public class SubscriptionManager extends Handler {
                 sub.subId = subId;
                 sub.subStatus = SubscriptionStatus.SUB_ACTIVATE;
                 mActivatePending.put(SubscriptionId.values()[subId], sub);
+            } else if (mContext.getResources().getBoolean
+                    (com.android.internal.R.bool.config_auto_provision_enable)) {
+                Subscription sub = setDefaultApp(cardIndex);
+                if (sub != null && !(userSub.subStatus == SubscriptionStatus.SUB_DEACTIVATED
+                        && sub.isSame(userSub))) {
+                    logd("enable the SIM card on sub" + cardIndex + " by auto provisioning");
+                    mActivatePending.put(SubscriptionId.values()[subId], sub);
+                }
             }
 
             // If this is a new card(no user preferred subscriptions are from
