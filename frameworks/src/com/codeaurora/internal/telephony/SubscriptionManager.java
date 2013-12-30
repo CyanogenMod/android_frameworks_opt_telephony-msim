@@ -589,6 +589,7 @@ public class SubscriptionManager extends Handler {
             notifySubscriptionActivated(subId);
         } else if (actStatus == SUB_STATUS_DEACTIVATED) {
             mCardSubMgr.setSubActivated(subId, false);
+            if (mCardInfoAvailable[subId] == false) resetCurrentSubscription(sub);
             // In case if this is DDS subscription, then wait for the all data disconnected
             // indication from the lower layers to mark the subscription as deactivated.
             if (subId == mCurrentDds) {
@@ -1183,6 +1184,7 @@ public class SubscriptionManager extends Handler {
 
         Integer cardIndex = (Integer)ar.userObj;
         CardUnavailableReason reason = (CardUnavailableReason)ar.result;
+        SubscriptionId sub = SubscriptionId.values()[cardIndex];
 
         logd("processCardInfoNotAvailable on cardIndex = " + cardIndex
                 + " reason = " + reason);
@@ -1198,18 +1200,14 @@ public class SubscriptionManager extends Handler {
         }
 
         // Reset the current subscription and notify the subscriptions deactivated.
-        // Notify only in case of radio off and SIM Refresh reset.
         if (reason == CardUnavailableReason.REASON_RADIO_UNAVAILABLE
-                || reason == CardUnavailableReason.REASON_SIM_REFRESH_RESET) {
+                || reason == CardUnavailableReason.REASON_SIM_REFRESH_RESET
+                || (getCurrentSubscriptionReadiness(sub) == false
+                && reason == CardUnavailableReason.REASON_CARD_REMOVED)) {
             // Card has been removed from slot - cardIndex.
             // Mark the active subscription from this card as de-activated!!
-            for (int i = 0; i < mNumPhones; i++) {
-                SubscriptionId sub = SubscriptionId.values()[i];
-                if (getCurrentSubscription(sub).slotId == cardIndex) {
-                    resetCurrentSubscription(sub);
-                    notifySubscriptionDeactivated(sub.ordinal());
-                }
-            }
+            resetCurrentSubscription(sub);
+            notifySubscriptionDeactivated(sub.ordinal());
         }
 
         if (reason == CardUnavailableReason.REASON_RADIO_UNAVAILABLE) {
@@ -1430,7 +1428,6 @@ public class SubscriptionManager extends Handler {
         }
         // Subscription is not activated.  So irrespective of the ready, set to false.
         mCurrentSubscriptions.get(sub).subReady = false;
-        getCurrentSubscription(sub).subStatus = SubscriptionStatus.SUB_DEACTIVATED;
     }
 
     /**
