@@ -237,6 +237,12 @@ public class MSimGSMPhone extends GSMPhone {
         MSimTelephonyManager.setTelephonyProperty(property, mSubscription, value);
     }
 
+    @Override
+    public void updatePhoneObject(int voiceRadioTech) {
+        // Only the PhoneProxy can update the phone object.
+        MSimPhoneFactory.getPhone(mSubscription).updatePhoneObject(voiceRadioTech);
+    }
+
     public String getSystemProperty(String property, String defValue) {
         if(getUnitTestMode()) {
             return null;

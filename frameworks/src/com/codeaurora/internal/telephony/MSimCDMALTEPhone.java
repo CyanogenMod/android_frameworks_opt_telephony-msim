@@ -422,6 +422,12 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
     }
 
     @Override
+    public void updatePhoneObject(int voiceRadioTech) {
+        // Only the PhoneProxy can update the phone object.
+        MSimPhoneFactory.getPhone(mSubscription).updatePhoneObject(voiceRadioTech);
+    }
+
+    @Override
     protected void setCardInPhoneBook() {
         if (mUiccController == null || mSubscriptionData == null) {
             return;
