@@ -102,16 +102,18 @@ public class MSimDefaultIccSmsInterfaceManager extends ISms.Stub {
         }
     }
 
-    public void sendTextWithPriority(String callingPackage, String destAddr, String scAddr,
-            String text, PendingIntent sentIntent, PendingIntent deliveryIntent, int priority) {
+    public void sendTextWithOptions(String callingPackage, String destAddr, String scAddr,
+            String text, PendingIntent sentIntent, PendingIntent deliveryIntent,
+            int priority) {
         MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager();
         if (iccSmsIntMgr != null) {
-            iccSmsIntMgr.sendTextWithPriority(callingPackage, destAddr, scAddr, text, sentIntent,
-                deliveryIntent, priority);
+            iccSmsIntMgr.sendTextWithOptions(callingPackage, destAddr, scAddr, text, sentIntent,
+                    deliveryIntent, priority);
         } else {
-            Rlog.e(LOG_TAG, "sendTextWithPriority iccSmsIntMgr is null ");
+            Rlog.e(LOG_TAG,"sendTextWithOptions iccSmsIntMgr is null ");
         }
     }
+
 
     public void sendMultipartText(String callingPackage, String destAddr, String scAddr,
             List<String> parts, List<PendingIntent> sentIntents,
@@ -122,6 +124,18 @@ public class MSimDefaultIccSmsInterfaceManager extends ISms.Stub {
                     deliveryIntents);
         } else {
             Rlog.e(LOG_TAG,"sendMultipartText iccSmsIntMgr is null ");
+        }
+    }
+
+    public void sendMultipartTextWithOptions(String callingPackage, String destAddr,
+            String scAddr, List<String> parts, List<PendingIntent> sentIntents,
+            List<PendingIntent> deliveryIntents, int priority) {
+        MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager();
+        if (iccSmsIntMgr != null ) {
+            iccSmsIntMgr.sendMultipartTextWithOptions(callingPackage, destAddr, scAddr, parts,
+                    sentIntents, deliveryIntents, priority);
+        } else {
+            Rlog.e(LOG_TAG,"sendMultipartTextWithOptions iccSmsIntMgr is null ");
         }
     }
 
