@@ -376,11 +376,6 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
     }
 
     @Override
-    public String getSubscriberId() {
-        return mSST.getImsi();
-    }
-
-    @Override
     public String getImei() {
         Rlog.e(LOG_TAG, "IMEI is not available in CDMA");
         return null;
