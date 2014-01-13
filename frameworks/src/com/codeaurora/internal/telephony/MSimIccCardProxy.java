@@ -86,6 +86,12 @@ public class MSimIccCardProxy extends IccCardProxy {
 
     @Override
     public void handleMessage(Message msg) {
+        if (mExternalState != State.READY &&
+            (msg.what == EVENT_RECORDS_LOADED || msg.what == EVENT_IMSI_READY)) {
+            //Do not process LOADED or IMSI if app is not in READY State.
+            log("App State is not READY, So ignore LOADED or IMSI event.");
+            return;
+        }
         switch (msg.what) {
             case EVENT_SUBSCRIPTION_ACTIVATED:
                 log("EVENT_SUBSCRIPTION_ACTIVATED");
