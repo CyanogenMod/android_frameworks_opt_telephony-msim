@@ -95,6 +95,18 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
         }
     }
 
+    public void sendDataWithOrigPort(String callingPackage, String destAddr, String scAddr,
+            int destPort, int origPort, byte[] data, PendingIntent sentIntent,
+            PendingIntent deliveryIntent, int subscription) {
+        MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subscription);
+        if (iccSmsIntMgr != null) {
+            iccSmsIntMgr.sendDataWithOrigPort(callingPackage, destAddr, scAddr, destPort, origPort,
+                    data, sentIntent, deliveryIntent);
+        } else {
+            Rlog.e(LOG_TAG,"sendDataWithOrigPort iccSmsIntMgr is null ");
+        }
+    }
+
     public void sendText(String callingPackage, String destAddr, String scAddr,
             String text, PendingIntent sentIntent, PendingIntent deliveryIntent, int subscription) {
         MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subscription);
