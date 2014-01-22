@@ -104,11 +104,11 @@ public class MSimDefaultIccSmsInterfaceManager extends ISms.Stub {
 
     public void sendTextWithOptions(String callingPackage, String destAddr, String scAddr,
             String text, PendingIntent sentIntent, PendingIntent deliveryIntent,
-            int priority) {
+            int priority, boolean isExpectMore) {
         MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager();
         if (iccSmsIntMgr != null) {
             iccSmsIntMgr.sendTextWithOptions(callingPackage, destAddr, scAddr, text, sentIntent,
-                    deliveryIntent, priority);
+                    deliveryIntent, priority, isExpectMore);
         } else {
             Rlog.e(LOG_TAG,"sendTextWithOptions iccSmsIntMgr is null ");
         }
@@ -129,11 +129,11 @@ public class MSimDefaultIccSmsInterfaceManager extends ISms.Stub {
 
     public void sendMultipartTextWithOptions(String callingPackage, String destAddr,
             String scAddr, List<String> parts, List<PendingIntent> sentIntents,
-            List<PendingIntent> deliveryIntents, int priority) {
+            List<PendingIntent> deliveryIntents, int priority, boolean isExpectMore) {
         MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager();
         if (iccSmsIntMgr != null ) {
             iccSmsIntMgr.sendMultipartTextWithOptions(callingPackage, destAddr, scAddr, parts,
-                    sentIntents, deliveryIntents, priority);
+                    sentIntents, deliveryIntents, priority, isExpectMore);
         } else {
             Rlog.e(LOG_TAG,"sendMultipartTextWithOptions iccSmsIntMgr is null ");
         }
