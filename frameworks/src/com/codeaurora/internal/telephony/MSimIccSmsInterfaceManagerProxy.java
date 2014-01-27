@@ -119,16 +119,16 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
         }
     }
 
-    public void sendTextWithPriority(String callingPackage, String destAddr, String scAddr,
-            String text, PendingIntent sentIntent, PendingIntent deliveryIntent, int priority,
-            int subscription) {
+    public void sendTextWithOptions(String callingPackage, String destAddr, String scAddr,
+            String text, PendingIntent sentIntent, PendingIntent deliveryIntent,
+            int priority, int subscription) {
         MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subscription);
         if (iccSmsIntMgr != null) {
-            iccSmsIntMgr.sendTextWithPriority(callingPackage, destAddr, scAddr, text, sentIntent,
-                deliveryIntent, priority);
+            iccSmsIntMgr.sendTextWithOptions(callingPackage, destAddr, scAddr, text, sentIntent,
+                    deliveryIntent, priority);
         } else {
-            Rlog.e(LOG_TAG, "sendTextWithPriority iccSmsIntMgr is null for" +
-                    " Subscription:" + subscription);
+            Rlog.e(LOG_TAG,"sendTextWithOptions iccSmsIntMgr is null for" +
+                          " Subscription:"+subscription);
         }
     }
 
@@ -145,6 +145,21 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
                           " Subscription:"+subscription);
         }
     }
+
+    public void sendMultipartTextWithOptions(String callingPackage, String destAddr,
+            String scAddr, List<String> parts, List<PendingIntent> sentIntents,
+            List<PendingIntent> deliveryIntents, int priority, int subscription)
+            throws android.os.RemoteException {
+        MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subscription);
+        if (iccSmsIntMgr != null ) {
+            iccSmsIntMgr.sendMultipartTextWithOptions(callingPackage, destAddr, scAddr, parts,
+                    sentIntents, deliveryIntents, priority);
+        } else {
+            Rlog.e(LOG_TAG,"sendMultipartTextWithOptions iccSmsIntMgr is null for" +
+                          " Subscription:"+subscription);
+        }
+    }
+
 
     public boolean enableCellBroadcast(int messageIdentifier, int subscription)
                 throws android.os.RemoteException {
