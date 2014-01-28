@@ -356,6 +356,10 @@ public final class MSimDcTracker extends DcTracker {
 
     /** Returns true if this is current DDS. */
     protected boolean isActiveDataSubscription() {
+        // mSubscription can be null if this is getting called from DcTracker constructor.
+        if (mSubscription == null && mPhone != null) {
+            mSubscription = mPhone.getSubscription();
+        }
         return (mSubscription != null
                 ? mSubscription == MSimPhoneFactory.getDataSubscription()
                 : false);
