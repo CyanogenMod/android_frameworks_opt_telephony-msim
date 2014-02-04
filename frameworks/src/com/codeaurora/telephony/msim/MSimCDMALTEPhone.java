@@ -99,6 +99,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                 this, EVENT_SUBSCRIPTION_ACTIVATED, null);
         subMgr.registerForSubscriptionDeactivated(mSubscription,
                 this, EVENT_SUBSCRIPTION_DEACTIVATED, null);
+        mSubscriptionData = subMgr.getCurrentSubscription(mSubscription);
     }
 
     @Override
@@ -424,7 +425,8 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
     @Override
     protected void setCardInPhoneBook() {
-        if (mUiccController == null || mSubscriptionData == null) {
+        if (mUiccController == null || mSubscriptionData == null
+                || mSubscriptionData.slotId == -1) {
             return;
         }
 
