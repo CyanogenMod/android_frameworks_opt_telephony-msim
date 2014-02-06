@@ -459,9 +459,18 @@ public class CardSubscriptionManager extends Handler {
                 && !cardInfo.isReadIccIdInProgress()) {
             String strCardIndex = Integer.toString(cardIndex);
             Message response = obtainMessage(EVENT_GET_ICCID_DONE, strCardIndex);
-            UiccCardApplication cardApp = uiccCard.getApplicationIndex(0);
-            if (cardApp != null) {
-                IccFileHandler fileHandler = cardApp.getIccFileHandler();
+            UiccCardApplication validApp = null;
+            int numApps = uiccCard.getNumApplications();
+            for (int i = 0; i < numApps; i++) {
+                UiccCardApplication app = uiccCard.getApplicationIndex(i);
+                if (app != null && app.getType() != AppType.APPTYPE_UNKNOWN) {
+                    validApp = app;
+                    break;
+                }
+            }
+
+            if (validApp != null) {
+                IccFileHandler fileHandler = validApp.getIccFileHandler();
                 if (fileHandler != null) {
                     logd("updateIccIds: get ICCID for cardInfo : "
                             + cardIndex);
