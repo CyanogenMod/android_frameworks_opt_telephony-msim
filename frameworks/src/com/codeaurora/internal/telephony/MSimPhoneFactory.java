@@ -443,6 +443,7 @@ public class MSimPhoneFactory extends PhoneFactory {
                 Settings.Global.MULTI_SIM_SMS_SUBSCRIPTION, subscription);
 
         Intent intent = new Intent("com.android.mms.transaction.SEND_MESSAGE");
+        intent.putExtra(MSimConstants.SUBSCRIPTION_KEY, subscription);
         sContext.sendBroadcast(intent);
 
         // Change occured in SMS preferred sub, update the default
