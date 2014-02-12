@@ -245,7 +245,7 @@ public class MSimCatService extends CatService {
         } else if (oldState != CardState.CARDSTATE_PRESENT &&
                 newState == CardState.CARDSTATE_PRESENT) {
             // Card moved to PRESENT STATE.
-            mCmdIf.reportStkServiceIsRunning(null);
+            reportStkIsRunning();
         }
     }
 
