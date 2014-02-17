@@ -90,7 +90,7 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
             iccSmsIntMgr.sendData(callingPackage, destAddr, scAddr, destPort, data,
                     sentIntent, deliveryIntent);
         } else {
-            Rlog.e(LOG_TAG,"sendText iccSmsIntMgr is null for" +
+            Rlog.e(LOG_TAG,"sendData iccSmsIntMgr is null for" +
                           " Subscription:"+subscription);
         }
     }
@@ -107,15 +107,15 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
         }
     }
 
-    public void sendTextWithPriority(String destAddr, String scAddr, String text,
-            PendingIntent sentIntent, PendingIntent deliveryIntent,
-            int priority, int subscription) {
+    public void sendTextWithPriority(String callingPackage, String destAddr, String scAddr,
+            String text, PendingIntent sentIntent, PendingIntent deliveryIntent, int priority,
+            int subscription) {
         MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subscription);
         if (iccSmsIntMgr != null) {
-            iccSmsIntMgr.sendTextWithPriority(destAddr, scAddr, text, sentIntent, deliveryIntent,
-                    priority);
+            iccSmsIntMgr.sendTextWithPriority(callingPackage, destAddr, scAddr, text, sentIntent,
+                deliveryIntent, priority);
         } else {
-            Rlog.e(LOG_TAG, "sendText iccSmsIntMgr is null for" +
+            Rlog.e(LOG_TAG, "sendTextWithPriority iccSmsIntMgr is null for" +
                     " Subscription:" + subscription);
         }
     }

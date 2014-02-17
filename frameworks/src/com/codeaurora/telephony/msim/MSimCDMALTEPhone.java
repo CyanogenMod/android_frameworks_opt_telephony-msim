@@ -376,11 +376,6 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
     }
 
     @Override
-    public String getSubscriberId() {
-        return mSST.getImsi();
-    }
-
-    @Override
     public String getImei() {
         Rlog.e(LOG_TAG, "IMEI is not available in CDMA");
         return null;
@@ -419,6 +414,12 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
     @Override
     public void requestIsimAuthentication(String nonce, Message result) {
         Rlog.e(LOG_TAG, "requestIsimAuthentication() is only supported on LTE devices");
+    }
+
+    @Override
+    public void updatePhoneObject(int voiceRadioTech) {
+        // Only the PhoneProxy can update the phone object.
+        MSimPhoneFactory.getPhone(mSubscription).updatePhoneObject(voiceRadioTech);
     }
 
     @Override

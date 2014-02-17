@@ -53,17 +53,6 @@ public class MSimCdmaInboundSmsHandler extends CdmaInboundSmsHandler {
         return handler;
     }
 
-    /* Updates the phone object when there is a change */
-    @Override
-    public void updatePhoneObject(PhoneBase phone) {
-        log("In MSimCdmaInboundSmsHandler updatePhoneObject ");
-        mPhone = phone;
-        mStorageMonitor = phone.mSmsStorageMonitor;
-        ((MSimCdmaCellBroadcastHandler)mCellBroadcastHandler).updatePhoneObject(phone);
-        ((MSimCdmaServiceCategoryProgramHandler)mServiceCategoryProgramHandler).
-                updatePhoneObject(phone);
-    }
-
     /**
      * Dispatch the intent with the specified permission, appOp, and result receiver, using
      * this state machine's handler thread to run the result receiver.

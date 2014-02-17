@@ -137,6 +137,12 @@ public class MSimUiccController extends UiccController {
                     AsyncResult ar = (AsyncResult)msg.obj;
                     onGetIccCardStatusDone(ar, index);
                     break;
+                case EVENT_RADIO_UNAVAILABLE:
+                    if (DBG) log("EVENT_RADIO_UNAVAILABLE ");
+                    disposeCard(mUiccCards[index]);
+                    mUiccCards[index] = null;
+                    mIccChangedRegistrants.notifyRegistrants(new AsyncResult(null, index, null));
+                    break;
                 default:
                     Rlog.e(LOG_TAG, " Unknown Event " + msg.what);
             }
@@ -152,6 +158,7 @@ public class MSimUiccController extends UiccController {
             mCis[i].registerForIccStatusChanged(this, EVENT_ICC_STATUS_CHANGED, index);
             // TODO remove this once modem correctly notifies the unsols
             mCis[i].registerForOn(this, EVENT_ICC_STATUS_CHANGED, index);
+            mCis[i].registerForNotAvailable(this, EVENT_RADIO_UNAVAILABLE, index);
         }
     }
 

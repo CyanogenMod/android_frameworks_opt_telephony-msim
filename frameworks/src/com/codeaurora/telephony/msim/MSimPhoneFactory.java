@@ -208,6 +208,11 @@ public class MSimPhoneFactory extends PhoneFactory {
                 }
                 Rlog.i(LOG_TAG, "defaultSmsApplication: " + packageName);
 
+                // Set up monitor to watch for changes to SMS packages
+                SmsApplication.initSmsPackageMonitor(context);
+
+
+
             }
         }
     }
@@ -392,6 +397,19 @@ public class MSimPhoneFactory extends PhoneFactory {
         return subscription;
     }
 
+    /* Gets User preferred Priority subscription setting*/
+    public static int getPrioritySubscription() {
+        int subscription = 0;
+        try {
+            subscription = Settings.Global.getInt(sContext.getContentResolver(),
+                    Settings.Global.MULTI_SIM_PRIORITY_SUBSCRIPTION);
+        } catch (SettingNotFoundException snfe) {
+            Rlog.e(LOG_TAG, "Settings Exception Reading Dual Sim Priority Subscription Values");
+        }
+
+        return subscription;
+    }
+
     static public void setVoiceSubscription(int subscription) {
         Settings.Global.putInt(sContext.getContentResolver(),
                 Settings.Global.MULTI_SIM_VOICE_CALL_SUBSCRIPTION, subscription);
@@ -432,4 +450,17 @@ public class MSimPhoneFactory extends PhoneFactory {
         sDefaultPhoneProxy.updateDefaultSMSIntfManager(subscription);
         Rlog.d(LOG_TAG, "setSMSSubscription : " + subscription);
     }
+
+    static public void setPrioritySubscription(int subscription) {
+        Settings.Global.putInt(sContext.getContentResolver(),
+                Settings.Global.MULTI_SIM_PRIORITY_SUBSCRIPTION, subscription);
+        Rlog.d(LOG_TAG, "setPrioritySubscription: " + subscription);
+    }
+
+    static public void setTuneAway(boolean tuneAway) {
+        Settings.Global.putInt(sContext.getContentResolver(),
+                Settings.Global.TUNE_AWAY_STATUS, tuneAway ? 1 : 0);
+        Rlog.d(LOG_TAG, "setTuneAway: " + tuneAway);
+    }
+
 }

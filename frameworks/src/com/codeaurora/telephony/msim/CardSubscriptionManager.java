@@ -144,6 +144,7 @@ public class CardSubscriptionManager extends Handler {
     private static final int EVENT_GET_ICCID_DONE = 3;
     private static final int EVENT_UPDATE_UICC_STATUS = 4;
     private static final int EVENT_SIM_REFRESH = 5;
+    private static final int EVENT_RADIO_NOT_AVAILABLE = 6;
 
     //***** Class Variables
     private static CardSubscriptionManager sCardSubscriptionManager;
@@ -153,6 +154,7 @@ public class CardSubscriptionManager extends Handler {
     private MSimUiccController mUiccController;
     private int mNumPhones = MSimTelephonyManager.getDefault().getPhoneCount();
     private boolean[] mRadioOn = new boolean[mNumPhones];
+    private boolean[] mSubActivated = new boolean[mNumPhones];
 
     private int mUpdateUiccStatusContext = 0;
 
@@ -193,11 +195,13 @@ public class CardSubscriptionManager extends Handler {
             // Register for Subscription ready event for both the subscriptions.
             Integer slot = new Integer(i);
             mCi[i].registerForOffOrNotAvailable(this, EVENT_RADIO_OFF_OR_NOT_AVAILABLE, slot);
+            mCi[i].registerForNotAvailable(this, EVENT_RADIO_NOT_AVAILABLE, slot);
             mCi[i].registerForOn(this, EVENT_RADIO_ON, slot);
 
             // Register for SIM Refresh events
             mCi[i].registerForIccRefresh(this, EVENT_SIM_REFRESH, new Integer(i));
             mRadioOn[i] = false;
+            mSubActivated[i] = false;
         }
 
         mUiccController.registerForIccChanged(this, EVENT_ICC_CHANGED, null);
@@ -223,12 +227,17 @@ public class CardSubscriptionManager extends Handler {
         switch(msg.what) {
             case EVENT_RADIO_OFF_OR_NOT_AVAILABLE:
                 logd("EVENT_RADIO_OFF_OR_NOT_AVAILABLE");
-                processRadioUnavailable((AsyncResult)msg.obj);
+                processRadioOffOrNotAvailable((AsyncResult)msg.obj);
                 break;
 
             case EVENT_RADIO_ON:
                 logd("EVENT_RADIO_ON");
                 processRadioOn((AsyncResult)msg.obj);
+                break;
+
+            case EVENT_RADIO_NOT_AVAILABLE:
+                logd("EVENT_RADIO_NOT_AVAILABLE");
+                processRadioNotAvailable((AsyncResult)msg.obj);
                 break;
 
             case EVENT_ICC_CHANGED:
@@ -275,15 +284,41 @@ public class CardSubscriptionManager extends Handler {
         }
     }
 
-    private void processRadioUnavailable(AsyncResult ar) {
+    private void processRadioOffOrNotAvailable(AsyncResult ar) {
         Integer cardIndex = (Integer)ar.userObj;
 
-        logd("processRadioUnavailable on cardIndex = " + cardIndex);
+        logd("processRadioOffOrNotAvailable on cardIndex = " + cardIndex);
 
         if (cardIndex >= 0 && cardIndex < mRadioOn.length) {
             mRadioOn[cardIndex] = false;
+            //If sub is deactivated then reset card info.
+            if (mSubActivated[cardIndex] == false) {
+                resetCardInfo(cardIndex);
+                //CardInfo is not valid. Inform others that card info not available.
+                notifyCardInfoNotAvailable(cardIndex,
+                        CardUnavailableReason.REASON_RADIO_UNAVAILABLE);
+                // Reset the flag card info available to false, so that
+                // next time it notifies all cards info available.
+                mAllCardsInfoAvailable = false;
+            }
+        } else {
+            logd("Invalid Index!!!");
+        }
+    }
+
+    private void processRadioNotAvailable(AsyncResult ar) {
+        Integer cardIndex = (Integer)ar.userObj;
+
+        logd("processRadioNotAvailable on cardIndex = " + cardIndex);
+
+        if (cardIndex >= 0 && cardIndex < mRadioOn.length) {
+            mRadioOn[cardIndex] = false;
+            //Radio unavailable comes in case of rild crash or Modem SSR.
+            //reset card info in case of radio Unavailable in order to send SET_UICC later.
             resetCardInfo(cardIndex);
-            // Card is not available from this slot.  Notify cards unavailable.
+            //As we are resetting cardInfo it is as good as sub is deactivated.
+            mSubActivated[cardIndex] = false;
+            //CardInfo is not valid. Inform others that card info not available.
             notifyCardInfoNotAvailable(cardIndex, CardUnavailableReason.REASON_RADIO_UNAVAILABLE);
             // Reset the flag card info available to false, so that
             // next time it notifies all cards info available.
@@ -391,6 +426,14 @@ public class CardSubscriptionManager extends Handler {
 
         if (cardIndex < mUiccCardList.size()) {
             mUiccCardList.set(cardIndex, new CardInfo(null));
+        }
+    }
+
+    /** Remember Sub Activation State */
+    public void setSubActivated(int cardIndex, boolean flag) {
+        logd("setSubActivated(): cardIndex = " + cardIndex + "Activated = " + flag);
+        if (cardIndex < mCardSubData.length) {
+            mSubActivated[cardIndex] = flag;
         }
     }
 
@@ -815,8 +858,8 @@ public class CardSubscriptionManager extends Handler {
 
     public boolean isCardAbsentOrError(int cardIndex) {
         CardInfo cardInfo = mUiccCardList.get(cardIndex);
-        return ((cardInfo.getCardState() == CardState.CARDSTATE_ABSENT)
-                || (cardInfo.getCardState() == CardState.CARDSTATE_ERROR));
+
+        return (cardInfo.getCardState() != CardState.CARDSTATE_PRESENT);
     }
 
     public boolean isAllCardsUpdated() {

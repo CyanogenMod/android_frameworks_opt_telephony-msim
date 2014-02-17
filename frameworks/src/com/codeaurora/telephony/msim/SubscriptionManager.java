@@ -50,6 +50,7 @@ import android.os.Message;
 import android.os.Registrant;
 import android.os.RegistrantList;
 import android.provider.Settings;
+import android.provider.Settings.SettingNotFoundException;
 import android.telephony.MSimTelephonyManager;
 import android.telephony.Rlog;
 import android.text.TextUtils;
@@ -132,7 +133,6 @@ public class SubscriptionManager extends Handler {
     private static final int EVENT_SET_PRIORITY_SUBSCRIPTION_DONE = 11;
     private static final int EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE = 12;
 
-
     // Set Subscription Return status
     public static final String SUB_ACTIVATE_SUCCESS = "ACTIVATE SUCCESS";
     public static final String SUB_ACTIVATE_FAILED = "ACTIVATE FAILED";
@@ -175,7 +175,7 @@ public class SubscriptionManager extends Handler {
     private int mCurrentDds;
     private int mQueuedDds;
     private int mCurrentAppId;
-    private boolean mDisableDdsInProgress;
+    private boolean mDisableDdsInProgress = false;
 
     private boolean mSetSubscriptionInProgress = false;
 
@@ -363,12 +363,10 @@ public class SubscriptionManager extends Handler {
                 Rlog.d(LOG_TAG, "EVENT_SET_PRIORITY_SUBSCRIPTION_DONE");
                 processSetPrioritySubscriptionDone((AsyncResult)msg.obj);
                 break;
-
             case EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE:
                 Rlog.d(LOG_TAG, "EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE");
                 processSetDefaultVoiceSubscriptionDone((AsyncResult)msg.obj);
                 break;
-
             default:
                 break;
         }
@@ -406,7 +404,6 @@ public class SubscriptionManager extends Handler {
         logd("processAllDataDisconnected: subscriptionReadiness[" + sub + "] = "
                 + getCurrentSubscriptionReadiness(subId));
         if (!getCurrentSubscriptionReadiness(subId)) {
-            resetCurrentSubscription(subId);
             // Update the subscription preferences
             updateSubPreferences();
             notifySubscriptionDeactivated(sub);
@@ -503,7 +500,9 @@ public class SubscriptionManager extends Handler {
     private void processSubscriptionStatusChanged(AsyncResult ar) {
         Integer subId = (Integer)ar.userObj;
         int actStatus = ((int[])ar.result)[0];
-        logd("handleSubscriptionStatusChanged sub = " + subId
+        SubscriptionId sub = SubscriptionId.values()[subId];
+        boolean isSubReady = mCurrentSubscriptions.get(sub).subReady;
+        logd("processSubscriptionStatusChanged sub = " + subId
                 + " actStatus = " + actStatus);
 
         if (!mRadioOn[subId]) {
@@ -511,8 +510,16 @@ public class SubscriptionManager extends Handler {
            return;
         }
 
+        if ((isSubReady == true && actStatus == SUB_STATUS_ACTIVATED) ||
+                (isSubReady == false && actStatus == SUB_STATUS_DEACTIVATED)) {
+            logd("processSubscriptionStatusChanged: CurrentSubStatus and NewSubStatus are same" +
+                    "for subId = "+subId+". Ignore indication!!!");
+            return;
+        }
+
         updateSubscriptionReadiness(subId, (actStatus == SUB_STATUS_ACTIVATED));
         if (actStatus == SUB_STATUS_ACTIVATED) { // Subscription Activated
+            mCardSubMgr.setSubActivated(subId, true);
             // Shall update the DDS here
             if (mSetDdsRequired) {
                 if (subId == mCurrentDds) {
@@ -530,7 +537,8 @@ public class SubscriptionManager extends Handler {
             }
             notifySubscriptionActivated(subId);
         } else if (actStatus == SUB_STATUS_DEACTIVATED) {
-            // Subscription is deactivated from below layers.
+            mCardSubMgr.setSubActivated(subId, false);
+            if (mCardInfoAvailable[subId] == false) resetCurrentSubscription(sub);
             // In case if this is DDS subscription, then wait for the all data disconnected
             // indication from the lower layers to mark the subscription as deactivated.
             if (subId == mCurrentDds) {
@@ -539,7 +547,6 @@ public class SubscriptionManager extends Handler {
                 MSimProxyManager.getInstance().registerForAllDataDisconnected(subId, this,
                         EVENT_ALL_DATA_DISCONNECTED, new Integer(subId));
             } else {
-                resetCurrentSubscription(SubscriptionId.values()[subId]);
                 updateSubPreferences();
                 notifySubscriptionDeactivated(subId);
                 triggerUpdateFromAvaialbleCards();
@@ -825,18 +832,18 @@ public class SubscriptionManager extends Handler {
             if (getCurrentSubscriptionStatus(subId) != SubscriptionStatus.SUB_ACTIVATED) {
                 subscription = getNextActiveSubscription(subscription);
                 MSimPhoneFactory.setVoiceSubscription(subscription);
-                if (activeSubCount == 1) {
-                    MSimPhoneFactory.setPromptEnabled(false);
-                }
+                MSimPhoneFactory.setPrioritySubscription(subscription);
             }
             subscription = MSimPhoneFactory.getSMSSubscription();
             subId = SubscriptionId.values()[subscription];
             if (getCurrentSubscriptionStatus(subId) != SubscriptionStatus.SUB_ACTIVATED) {
                 subscription = getNextActiveSubscription(subscription);
                 MSimPhoneFactory.setSMSSubscription(subscription);
-                if (activeSubCount == 1) {
-                    MSimPhoneFactory.setSMSPromptEnabled(false);
-                }
+            }
+            //Disable Prompt mode if only one sub is active.
+            if (activeSubCount == 1) {
+                MSimPhoneFactory.setPromptEnabled(false);
+                MSimPhoneFactory.setSMSPromptEnabled(false);
             }
             sendDefaultSubsInfo();
 
@@ -1059,7 +1066,8 @@ public class SubscriptionManager extends Handler {
         for (int i = 0; i < mNumPhones; i++) {
             SubscriptionId sub = SubscriptionId.values()[i];
             Subscription actPendingSub = mActivatePending.get(sub);
-            if (userSub != null && userSub.isSame(actPendingSub)) {
+            if (userSub != null && userSub.isSame(actPendingSub)
+                    && userSub.subId == actPendingSub.subId) {
                 return true;
             }
         }
@@ -1117,6 +1125,7 @@ public class SubscriptionManager extends Handler {
 
         Integer cardIndex = (Integer)ar.userObj;
         CardUnavailableReason reason = (CardUnavailableReason)ar.result;
+        SubscriptionId sub = SubscriptionId.values()[cardIndex];
 
         logd("processCardInfoNotAvailable on cardIndex = " + cardIndex
                 + " reason = " + reason);
@@ -1132,18 +1141,14 @@ public class SubscriptionManager extends Handler {
         }
 
         // Reset the current subscription and notify the subscriptions deactivated.
-        // Notify only in case of radio off and SIM Refresh reset.
         if (reason == CardUnavailableReason.REASON_RADIO_UNAVAILABLE
-                || reason == CardUnavailableReason.REASON_SIM_REFRESH_RESET) {
+                || reason == CardUnavailableReason.REASON_SIM_REFRESH_RESET
+                || (getCurrentSubscriptionReadiness(sub) == false
+                && reason == CardUnavailableReason.REASON_CARD_REMOVED)) {
             // Card has been removed from slot - cardIndex.
             // Mark the active subscription from this card as de-activated!!
-            for (int i = 0; i < mNumPhones; i++) {
-                SubscriptionId sub = SubscriptionId.values()[i];
-                if (getCurrentSubscription(sub).slotId == cardIndex) {
-                    resetCurrentSubscription(sub);
-                    notifySubscriptionDeactivated(sub.ordinal());
-                }
-            }
+            resetCurrentSubscription(sub);
+            notifySubscriptionDeactivated(sub.ordinal());
         }
 
         if (reason == CardUnavailableReason.REASON_RADIO_UNAVAILABLE) {
@@ -1785,7 +1790,15 @@ public class SubscriptionManager extends Handler {
         return mSetSubscriptionInProgress;
     }
 
-    private void sendDefaultSubsInfo () {
-    //TODO: DSDA
+    public void sendDefaultSubsInfo () {
+        int prioritySubVal = MSimPhoneFactory.getPrioritySubscription();
+        int defaultVoiceSubVal = MSimPhoneFactory.getVoiceSubscription();
+        Rlog.d(LOG_TAG, "Multi Sim Subscription Values." + prioritySubVal + defaultVoiceSubVal);
+        Message msgPrioritySub = Message.obtain(this,
+                EVENT_SET_PRIORITY_SUBSCRIPTION_DONE, null);
+        Message msgDefaultVoiceSub = Message.obtain(this,
+                EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE, null);
+        ((RIL)mCi[0]).setPrioritySub(prioritySubVal, msgPrioritySub);
+        ((RIL)mCi[0]).setDefaultVoiceSub(defaultVoiceSubVal, msgDefaultVoiceSub);
     }
 }
