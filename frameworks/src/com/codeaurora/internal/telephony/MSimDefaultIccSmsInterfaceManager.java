@@ -20,6 +20,7 @@
 package com.codeaurora.telephony.msim;
 
 import android.app.PendingIntent;
+import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.telephony.Rlog;
 
@@ -67,6 +68,9 @@ public class MSimDefaultIccSmsInterfaceManager extends ISms.Stub {
             Rlog.e(LOG_TAG,"copyMessageToIccEf iccSmsIntMgr is null");
             return false;
         }
+    }
+
+    public void synthesizeMessages(String originatingAddress, String scAddress, List<String> messages, long timestampMillis) throws RemoteException {
     }
 
     public List<SmsRawData> getAllMessagesFromIccEf(String callingPackage)
