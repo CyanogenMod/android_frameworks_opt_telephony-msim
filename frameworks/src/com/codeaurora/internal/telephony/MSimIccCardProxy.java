@@ -104,7 +104,37 @@ public class MSimIccCardProxy extends IccCardProxy {
                 break;
 
             case EVENT_RECORDS_LOADED:
-                updateproperty();
+                if (mIccRecords != null) {
+                    String operator = mIccRecords.getOperatorNumeric();
+                    int sub = mCardIndex;
+
+                    log("operator = " + operator + " SUB = " + sub);
+
+                    if (operator != null) {
+                        MSimTelephonyManager.setTelephonyProperty(
+                                PROPERTY_ICC_OPERATOR_NUMERIC, sub, operator);
+                        if (mCurrentAppType == UiccController.APP_FAM_3GPP) {
+                            MSimTelephonyManager.setTelephonyProperty(
+                                    PROPERTY_APN_SIM_OPERATOR_NUMERIC, sub, operator);
+                        }
+                        String countryCode = operator.substring(0,3);
+                        if (countryCode != null) {
+                            MSimTelephonyManager.setTelephonyProperty(
+                                    PROPERTY_ICC_OPERATOR_ISO_COUNTRY, sub,
+                                    MccTable.countryCodeForMcc(Integer.parseInt(countryCode)));
+                        } else {
+                            loge("EVENT_RECORDS_LOADED Country code is null");
+                        }
+
+                        // Update MCC MNC device configuration information only for default sub.
+                        if (sub == TelephonyManager.getDefaultSubscription()) {
+                            log("Update mccmnc config for default subscription.");
+                            MccTable.updateMccMncConfiguration(mContext, operator);
+                        }
+                    } else {
+                        loge("EVENT_RECORDS_LOADED Operator name is null");
+                    }
+                }
                 broadcastIccStateChangedIntent(IccCardConstants.INTENT_VALUE_ICC_LOADED, null);
                 break;
 
@@ -164,45 +194,11 @@ public class MSimIccCardProxy extends IccCardProxy {
                 mUiccCard = newCard;
                 mUiccApplication = newApp;
                 mIccRecords = newRecords;
-                updateproperty();
                 registerUiccCardEvents();
                 updateActiveRecord();
             }
 
             updateExternalState();
-        }
-    }
-
-    protected void updateproperty(){
-        if (mIccRecords == null) {
-            log("EVENT_RECORDS_LOADED null mIccRecords");
-        } else {
-            String operator = mIccRecords.getOperatorNumeric();
-            int sub = mCardIndex;
-            log("operator = " + operator + " SUB = " + sub);
-
-            if (operator != null && mIccRecords.getRecordsLoaded()) {
-                MSimTelephonyManager.setTelephonyProperty(
-                        PROPERTY_ICC_OPERATOR_NUMERIC, sub, operator);
-                MSimTelephonyManager.setTelephonyProperty(
-                        PROPERTY_APN_SIM_OPERATOR_NUMERIC, sub, operator);
-                String countryCode = operator.substring(0,3);
-                if (countryCode != null) {
-                    MSimTelephonyManager.setTelephonyProperty(PROPERTY_ICC_OPERATOR_ISO_COUNTRY,
-                            sub, MccTable.countryCodeForMcc(Integer.parseInt(countryCode)));
-                } else {
-                    loge("EVENT_RECORDS_LOADED Country code is null");
-                }
-
-                // Update MCC MNC device configuration information only for default sub.
-                if (sub == TelephonyManager.getDefaultSubscription()) {
-                    log("Update mccmnc config for default subscription.");
-                    MccTable.updateMccMncConfiguration(mContext, operator);
-                }
-            } else {
-                loge("EVENT_RECORDS_LOADED Operator name = " + operator + ", loaded = "
-                        + mIccRecords.getRecordsLoaded());
-            }
         }
     }
 
