@@ -84,6 +84,7 @@ public class MSimGSMPhone extends GSMPhone {
                 this, EVENT_SUBSCRIPTION_ACTIVATED, null);
         subMgr.registerForSubscriptionDeactivated(mSubscription,
                 this, EVENT_SUBSCRIPTION_DEACTIVATED, null);
+        mSubscriptionData = subMgr.getCurrentSubscription(mSubscription);
 
         setProperties();
     }
@@ -342,7 +343,8 @@ public class MSimGSMPhone extends GSMPhone {
 
     @Override
     protected void setCardInPhoneBook() {
-        if (mUiccController == null || mSubscriptionData == null) {
+        if (mUiccController == null || mSubscriptionData == null
+                || mSubscriptionData.slotId == -1) {
             return;
         }
         UiccCard card = ((MSimUiccController)mUiccController).getUiccCard(mSubscriptionData.slotId);
