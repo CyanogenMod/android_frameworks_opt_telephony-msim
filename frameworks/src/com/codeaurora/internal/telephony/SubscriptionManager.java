@@ -1102,6 +1102,7 @@ public class SubscriptionManager extends Handler {
             // Card has been removed from slot - cardIndex.
             // Mark the active subscription from this card as de-activated!!
             resetCurrentSubscription(sub);
+            updateSubPreferences();
             notifySubscriptionDeactivated(sub.ordinal());
         }
 
