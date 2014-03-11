@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.codeaurora.telephony.msim;
+package com.codeaurora.internal.telephony.msim;
 
 import android.Manifest;
 import android.app.Activity;

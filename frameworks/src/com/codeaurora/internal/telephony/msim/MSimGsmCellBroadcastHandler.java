@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-package com.codeaurora.telephony.msim;
-
+package com.codeaurora.internal.telephony.msim;
 
 import android.Manifest;
 import android.app.Activity;
@@ -27,20 +26,19 @@ import android.content.Intent;
 import android.provider.Telephony;
 import android.telephony.SmsCbMessage;
 
-import com.android.internal.telephony.CellBroadcastHandler;
+import com.android.internal.telephony.gsm.GsmCellBroadcastHandler;
 import com.android.internal.telephony.MSimConstants;
 import com.android.internal.telephony.PhoneBase;
 
+public class MSimGsmCellBroadcastHandler extends GsmCellBroadcastHandler {
 
-public class MSimCdmaCellBroadcastHandler extends CellBroadcastHandler {
-
-    protected MSimCdmaCellBroadcastHandler(Context context, PhoneBase phone) {
-        super("MSimCdmaCellBroadcastHandler", context, phone);
+    protected MSimGsmCellBroadcastHandler(Context context, PhoneBase phone) {
+        super(context, phone);
     }
 
-    public static MSimCdmaCellBroadcastHandler makeMSimCdmaCellBroadcastHandler(Context context,
+    public static MSimGsmCellBroadcastHandler makeMSimGsmCellBroadcastHandler(Context context,
             PhoneBase phone) {
-        MSimCdmaCellBroadcastHandler handler = new MSimCdmaCellBroadcastHandler(context, phone);
+        MSimGsmCellBroadcastHandler handler = new MSimGsmCellBroadcastHandler(context, phone);
         handler.start();
         return handler;
     }
