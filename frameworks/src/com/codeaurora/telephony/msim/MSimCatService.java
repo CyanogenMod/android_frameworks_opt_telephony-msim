@@ -70,6 +70,7 @@ public class MSimCatService extends CatService {
         mCmdIf.setOnCatProactiveCmd(this, MSG_ID_PROACTIVE_COMMAND, null);
         mCmdIf.setOnCatEvent(this, MSG_ID_EVENT_NOTIFY, null);
         mCmdIf.setOnCatCallSetUp(this, MSG_ID_CALL_SETUP, null);
+        mCmdIf.setOnCatSendSmsResult(this, MSG_ID_SEND_SMS_RESULT, null); // Samsung STK
         //mCmdIf.setOnSimRefresh(this, MSG_ID_REFRESH, null);
 
         mCmdIf.registerForIccRefresh(this, MSG_ID_ICC_REFRESH, null);
