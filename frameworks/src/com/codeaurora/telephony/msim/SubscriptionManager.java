@@ -1019,8 +1019,11 @@ public class SubscriptionManager extends Handler {
     private void notifyIfAnyNewCardsAvailable() {
         if (isNewCardAvailable()) {
             // NEW CARDs Available!!!
-            // Notify the USER HERE!!!
-            notifyNewCardsAvailable();
+            // Notify the USER HERE!!! unless auto provision is enabled
+            if (!mContext.getResources().getBoolean
+                    (com.android.internal.R.bool.config_auto_provision_enable)) {
+                notifyNewCardsAvailable();
+            }
             for (int i = 0; i < mIsNewCard.length; i++) {
                 mIsNewCard[i] = false;
             }
