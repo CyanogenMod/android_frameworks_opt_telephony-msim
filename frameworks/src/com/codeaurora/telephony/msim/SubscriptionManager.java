@@ -42,8 +42,10 @@ import com.android.internal.telephony.RIL;
 
 import com.codeaurora.telephony.msim.Subscription.SubscriptionStatus;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Message;
@@ -132,6 +134,7 @@ public class SubscriptionManager extends Handler {
     private static final int EVENT_PROCESS_AVAILABLE_CARDS = 10;
     private static final int EVENT_SET_PRIORITY_SUBSCRIPTION_DONE = 11;
     private static final int EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE = 12;
+    private static final int EVENT_SHUTDOWN_ACTION_RECEIVED = 13;
 
     // Set Subscription Return status
     public static final String SUB_ACTIVATE_SUCCESS = "ACTIVATE SUCCESS";
@@ -197,6 +200,19 @@ public class SubscriptionManager extends Handler {
         SUB1,
         SUB2
     }
+
+    private boolean mIsShutDownInProgress = false;
+
+    private BroadcastReceiver mShutDownReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (Intent.ACTION_SHUTDOWN.equals(intent.getAction()) &&
+                        !intent.getBooleanExtra(Intent.EXTRA_SHUTDOWN_USERSPACE_ONLY, false)) {
+                    logd("ACTION_SHUTDOWN Received");
+                    sendEmptyMessage(EVENT_SHUTDOWN_ACTION_RECEIVED);
+                }
+            }
+        };
 
     /**
      * Get singleton instance of SubscriptionManager.
@@ -285,6 +301,9 @@ public class SubscriptionManager extends Handler {
             SubscriptionId sub = SubscriptionId.values()[i];
             mCurrentSubscriptions.put(sub, new PhoneSubscriptionInfo());
         }
+
+        IntentFilter filter = new IntentFilter(Intent.ACTION_SHUTDOWN);
+        mContext.registerReceiver(mShutDownReceiver, filter);
         logd("Constructor - Exit");
     }
 
@@ -367,6 +386,12 @@ public class SubscriptionManager extends Handler {
                 Rlog.d(LOG_TAG, "EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE");
                 processSetDefaultVoiceSubscriptionDone((AsyncResult)msg.obj);
                 break;
+
+            case EVENT_SHUTDOWN_ACTION_RECEIVED:
+                logd("EVENT_SHUTDOWN_ACTION_RECEIVED");
+                mIsShutDownInProgress = true;
+                break;
+
             default:
                 break;
         }
@@ -866,6 +891,11 @@ public class SubscriptionManager extends Handler {
      * Updates the subscriptions preferences based on the number of active subscriptions.
      */
     private void updateSubPreferences() {
+        if (mIsShutDownInProgress) {
+            logd("updateSubPreferences: Shutdown in progress. Do not update sub prefernces");
+            return;
+        }
+
         int activeSubCount = 0;
 
         for (int i = 0; i < mNumPhones; i++) {
