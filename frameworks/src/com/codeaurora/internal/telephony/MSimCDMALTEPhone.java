@@ -143,6 +143,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                 TelephonyProperties.PROPERTY_OTASP_NUM_SCHEMA,"");
 
         // Notify voicemails.
+        updateVoiceMail();
         notifier.notifyMessageWaitingChanged(this);
         setProperties();
     }
