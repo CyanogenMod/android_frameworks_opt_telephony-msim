@@ -872,9 +872,21 @@ public class SubscriptionManager extends Handler {
             SubscriptionId sub = SubscriptionId.values()[i];
             if (getCurrentSubscriptionStatus(sub) == SubscriptionStatus.SUB_ACTIVATED) {
                 activeSubCount++;
+            } else {
+                // If there any pending activation requests on the deactivated sub, we
+                // should not update sub preferences, instead wait for the activations to complete.
+                // This can happen when user changes the subscription app within the same sub.
+                // For ex: CSIM->Global, Global->CSIM etc.
+                if (mSetSubscriptionInProgress && isAnyPendingActivateRequest(i)) {
+                    logd("updateSubPreferences: Sub" + i
+                            + " has pending activation reqs. Do not update sub prefs now.");
+                    return;
+                }
             }
         }
 
+        logd("updateSubPreferences: activeSubCount = " + activeSubCount
+                + " mNumPhones = " + mNumPhones);
         // If preferred subscription is deactivated then check next available subscription and
         // set that subscription as preferred for voice/sms/data.
         if (activeSubCount > 0 && activeSubCount < mNumPhones) {
