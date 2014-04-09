@@ -23,6 +23,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.SQLException;
+import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Message;
 import android.preference.PreferenceManager;
@@ -109,6 +110,19 @@ public class MSimGSMPhone extends GSMPhone {
                 log("EVENT_SUBSCRIPTION_DEACTIVATED");
                 onSubscriptionDeactivated();
                 break;
+
+            case EVENT_GET_BASEBAND_VERSION_DONE:
+                AsyncResult ar;
+                ar = (AsyncResult)msg.obj;
+
+                if (ar.exception != null) {
+                    break;
+                }
+
+                log("Baseband version: " + ar.result);
+                super.setSystemProperty(TelephonyProperties.PROPERTY_BASEBAND_VERSION,
+                        (String)ar.result);
+            break;
 
             default:
                 super.handleMessage(msg);
