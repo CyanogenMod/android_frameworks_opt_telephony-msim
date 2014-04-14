@@ -227,6 +227,16 @@ public class MSimDefaultIccSmsInterfaceManager extends ISms.Stub {
         return null;
     }
 
+    public int getSmsCapacityOnIcc() {
+        MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager();
+        if (iccSmsIntMgr != null ) {
+            return iccSmsIntMgr.getSmsCapacityOnIcc();
+        } else {
+            Rlog.e(LOG_TAG, "getSmsCapacityOnIcc iccSmsIntMgr is null");
+        }
+        return -1;
+    }
+
     /**
      * get sms interface manager object from user preferred sms subscription
      * related phone proxy object.

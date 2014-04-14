@@ -240,6 +240,21 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
     }
 
     /**
+     * Get the capacity count of sms on Icc card.
+     **/
+    public int getSmsCapacityOnIcc(int subscription)
+            throws android.os.RemoteException {
+        MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subscription);
+
+        if (iccSmsIntMgr != null ) {
+            return iccSmsIntMgr.getSmsCapacityOnIcc();
+        } else {
+            Rlog.e(LOG_TAG, "iccSmsIntMgr is null for " + " subID: " + subscription);
+            return -1;
+        }
+    }
+
+    /**
      * get sms interface manager object based on subscription.
      **/
     private MSimIccSmsInterfaceManager getIccSmsInterfaceManager(int subscription) {
