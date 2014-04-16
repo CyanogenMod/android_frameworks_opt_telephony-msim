@@ -281,7 +281,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
         // Sets iso country property by retrieving from build-time system property
         setIsoCountryProperty(operatorNumeric);
         // Updates MCC MNC device configuration information
-        MccTable.updateMccMncConfiguration(mContext, operatorNumeric);
+        MccTable.updateMccMncConfiguration(mContext, operatorNumeric, false);
         // Sets current entry in the telephony carrier table
         updateCurrentCarrierInProvider();
     }
