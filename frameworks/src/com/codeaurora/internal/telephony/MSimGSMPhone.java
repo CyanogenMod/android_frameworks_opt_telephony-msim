@@ -100,6 +100,11 @@ public class MSimGSMPhone extends GSMPhone {
 
     @Override
     public void handleMessage(Message msg) {
+        if (!mIsTheCurrentActivePhone) {
+            log("Received message " + msg +
+                    "[" + msg.what + "] while being destroyed. Ignoring.");
+            return;
+        }
         switch (msg.what) {
             case EVENT_SUBSCRIPTION_ACTIVATED:
                 log("EVENT_SUBSCRIPTION_ACTIVATED");
@@ -140,7 +145,6 @@ public class MSimGSMPhone extends GSMPhone {
 
     private void onSubscriptionDeactivated() {
         log("SUBSCRIPTION DEACTIVATED");
-        mSubscriptionData = null;
         resetSubSpecifics();
     }
 
@@ -310,7 +314,7 @@ public class MSimGSMPhone extends GSMPhone {
      */
     @Override
     protected void setCallForwardingPreference(boolean enabled) {
-        Rlog.d(LOG_TAG, "Set callforwarding info to perferences for sub = "
+        log("Set callforwarding info to perferences for sub = "
                 + mSubscription + " enabled = " + enabled);
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(mContext);
         SharedPreferences.Editor edit = sp.edit();
@@ -323,12 +327,12 @@ public class MSimGSMPhone extends GSMPhone {
 
     @Override
     protected boolean getCallForwardingPreference() {
-        Rlog.d(LOG_TAG, "Get callforwarding info from perferences for sub = "
+        log("Get callforwarding info from perferences for sub = "
                 + mSubscription);
 
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(mContext);
         boolean cf = sp.getBoolean((CF_ENABLED + mSubscription), false);
-        Rlog.d(LOG_TAG, "CF enabled = " + cf);
+        log("CF enabled = " + cf);
         return cf;
     }
 
@@ -343,11 +347,19 @@ public class MSimGSMPhone extends GSMPhone {
 
     @Override
     protected void setCardInPhoneBook() {
+        log("setCardInPhoneBook: mSubscriptionData: " + mSubscriptionData);
         if (mUiccController == null || mSubscriptionData == null
-                || mSubscriptionData.slotId == -1) {
+                || mSubscriptionData.slotId == -1 || mSubscriptionData.
+                subStatus != Subscription.SubscriptionStatus.SUB_ACTIVATED) {
+            mSimPhoneBookIntManager.setIccCard(null);
             return;
         }
         UiccCard card = ((MSimUiccController)mUiccController).getUiccCard(mSubscriptionData.slotId);
         mSimPhoneBookIntManager.setIccCard(card);
+    }
+
+    @Override
+    protected void log(String s) {
+        Rlog.d(LOG_TAG, "[MSimGSMPhone] ["+mSubscription+"]" + s);
     }
 }

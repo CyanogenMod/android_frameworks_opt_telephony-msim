@@ -89,7 +89,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
         mSubscription = subscription;
 
-        Rlog.d(LOG_TAG, "MSimCDMALTEPhone: constructor: sub = " + mSubscription);
+        log("MSimCDMALTEPhone: constructor: sub = " + mSubscription);
 
         mDcTracker = new MSimDcTracker(this);
 
@@ -159,6 +159,11 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
     @Override
     public void handleMessage(Message msg) {
+        if (!mIsTheCurrentActivePhone) {
+            log("Received message " + msg + "on sub " + mSubscription +
+                    "[" + msg.what + "] while being destroyed. Ignoring.");
+            return;
+        }
         switch (msg.what) {
             case EVENT_SUBSCRIPTION_ACTIVATED:
                 log("EVENT_SUBSCRIPTION_ACTIVATED");
@@ -198,7 +203,6 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
     }
 
     private void onSubscriptionDeactivated() {
-        mSubscriptionData = null;
     }
 
     //Gets Subscription information in the Phone Object
@@ -323,7 +327,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                         : null));
         }
 
-        Rlog.d(LOG_TAG, "getOperatorNumeric: mCdmaSubscriptionSource = " + mCdmaSubscriptionSource
+        log("getOperatorNumeric: mCdmaSubscriptionSource = " + mCdmaSubscriptionSource
                 + " operatorNumeric = " + operatorNumeric);
 
         return operatorNumeric;
@@ -338,7 +342,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
         int currentDds = MSimPhoneFactory.getDataSubscription();
         String operatorNumeric = getOperatorNumeric();
 
-        Rlog.d(LOG_TAG, "updateCurrentCarrierInProvider: mSubscription = " + getSubscription()
+        log("updateCurrentCarrierInProvider: mSubscription = " + getSubscription()
                 + " currentDds = " + currentDds + " operatorNumeric = " + operatorNumeric);
 
         if (!TextUtils.isEmpty(operatorNumeric) && (getSubscription() == currentDds)) {
@@ -385,7 +389,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
     @Override
     public String getDeviceSvn() {
-        Rlog.d(LOG_TAG, "getDeviceSvn(): return 0");
+        log("getDeviceSvn(): return 0");
         return "0";
     }
 
@@ -426,8 +430,11 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
     @Override
     protected void setCardInPhoneBook() {
+        log("setCardInPhoneBook: mSubscriptionData : " + mSubscriptionData);
         if (mUiccController == null || mSubscriptionData == null
-                || mSubscriptionData.slotId == -1) {
+                || mSubscriptionData.slotId == -1 || mSubscriptionData.
+                subStatus != Subscription.SubscriptionStatus.SUB_ACTIVATED) {
+            mRuimPhoneBookInterfaceManager.setIccCard(null);
             return;
         }
 
