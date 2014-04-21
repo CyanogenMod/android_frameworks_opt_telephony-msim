@@ -255,7 +255,7 @@ public class SubscriptionManager extends Handler {
 
         mCardSubMgr = CardSubscriptionManager.getInstance(context, uiccController, ci);
         for (int i=0; i < mNumPhones; i++) {
-	            mCardSubMgr.registerForCardInfoAvailable(i, this,
+            mCardSubMgr.registerForCardInfoAvailable(i, this,
                     EVENT_CARD_INFO_AVAILABLE, new Integer(i));
             mCardSubMgr.registerForCardInfoUnavailable(i, this,
                     EVENT_CARD_INFO_NOT_AVAILABLE, new Integer(i));
@@ -290,9 +290,18 @@ public class SubscriptionManager extends Handler {
         }
 
         //mMSimProxyManager = MSimProxyManager.getInstance();
-        // Get the current active dds
+        // Get the current active dds and default dds settings.
         mCurrentDds =  MSimPhoneFactory.getDataSubscription();
-        logd("In MSimProxyManager constructor current active dds is:" + mCurrentDds);
+        int defaultDds =  MSimPhoneFactory.getDefaultDataSubscription();
+        logd("In MSimProxyManager constructor current active dds is:" + mCurrentDds
+                +  " default Dds = " + defaultDds);
+        if (mCurrentDds != defaultDds) {
+            /* There was a temporary dds switch and phone power cycled or phone process
+               restarted before the dds was switched back to original setting.
+               Switch back to default dds. */
+            MSimPhoneFactory.setDataSubscription(defaultDds);
+            mCurrentDds = defaultDds;
+        }
 
         mCurrentSubscriptions = new HashMap<SubscriptionId, PhoneSubscriptionInfo>();
         for (int i = 0; i < mNumPhones; i++) {
@@ -404,8 +413,18 @@ public class SubscriptionManager extends Handler {
             return;
         }
 
-        Integer sub = (Integer)ar.userObj;
-        logd("processAllDataDisconnected: sub = " + sub);
+        Integer sub = null;
+        boolean isTempSwitch = false;
+        if (ar.userObj != null) {
+            int[] ddsData = (int[])(ar.userObj);
+            sub = ddsData[0];
+            isTempSwitch = (ddsData[1] == 1);
+        } else {
+            loge("processAllDataDisconnected: ar.userObj corrupt");
+            return;
+        }
+
+        logd("processAllDataDisconnected: sub = " + sub + " , isTempSwitch = " + isTempSwitch);
         MSimProxyManager.getInstance().unregisterForAllDataDisconnected(sub, this);
 
         /*
@@ -413,7 +432,7 @@ public class SubscriptionManager extends Handler {
          * subscription.
          */
         if (mDisableDdsInProgress) {
-            processDisableDataConnectionDone(ar);
+            updateDataSubscription(isTempSwitch);
             return;
         }
 
@@ -434,9 +453,20 @@ public class SubscriptionManager extends Handler {
      */
     private void processSetDataSubscriptionDone(AsyncResult ar) {
         if (ar.exception == null) {
-            logd("Register for the all data disconnect");
+            boolean isTempSwitch = false;
+            if (ar.userObj != null) {
+                int[] ddsData = (int[])(ar.userObj);
+                isTempSwitch = (ddsData[1] == 1);
+            } else {
+                loge("processSetDataSubscriptionDone: ar.userObj corrupt");
+                return;
+            }
+            logd("Register for the all data disconnect, isTempSwitch = " + isTempSwitch);
+            int[] ddsData = new int[2];
+            ddsData[0] = mCurrentDds;
+            ddsData[1] = (isTempSwitch? 1: 0);
             MSimProxyManager.getInstance().registerForAllDataDisconnected(mCurrentDds, this,
-                    EVENT_ALL_DATA_DISCONNECTED, new Integer(mCurrentDds));
+                    EVENT_ALL_DATA_DISCONNECTED, ddsData);
             mDdsSwitchRegistrants.notifyRegistrants();
         } else {
             Rlog.d(LOG_TAG, "setDataSubscriptionSource Failed : ");
@@ -455,32 +485,33 @@ public class SubscriptionManager extends Handler {
         }
     }
 
-    private void processDisableDataConnectionDone(AsyncResult ar) {
-        //if SUCCESS
-        if (ar != null) {
-            // Mark this as the current dds
-            MSimPhoneFactory.setDataSubscription(mQueuedDds);
+    private void updateDataSubscription(boolean isTemporarySwitch) {
+        logd("updateDefaultDataSubscription: isTempSwitch = " + isTemporarySwitch);
+        // Mark this as the current dds
+        MSimPhoneFactory.setDataSubscription(mQueuedDds);
 
-            if (mCurrentDds != mQueuedDds) {
-                // The current DDS is changed.  Call update to unregister for all the
-                // events in DCT to avoid unnecessary processings in the non-DDS.
-                MSimProxyManager.getInstance().updateDataConnectionTracker(mCurrentDds);
-            }
-
-            mCurrentDds = mQueuedDds;
-
-            // Update the DCT corresponds to the new DDS.
-            MSimProxyManager.getInstance().updateDataConnectionTracker(mCurrentDds);
-
-            // Enable the data connectivity on new dds.
-            logd("setDataSubscriptionSource is Successful"
-                    + "  Enable Data Connectivity on Subscription " + mCurrentDds);
-            MSimProxyManager.getInstance().enableDataConnectivity(mCurrentDds);
-            mDataActive = true;
-        } else {
-            //This should not occur as it is a self posted message
-            Rlog.d(LOG_TAG, "Disabling Data Subscription Failed");
+        /* Save the user preferred data subscription in DB if it is not a temporary
+           DDS switch.*/
+        if (!isTemporarySwitch) {
+            MSimPhoneFactory.setDefaultDataSubscription(mQueuedDds);
         }
+
+        if (mCurrentDds != mQueuedDds) {
+            // The current DDS is changed.  Call update to unregister for all the
+            // events in DCT to avoid unnecessary processings in the non-DDS.
+            MSimProxyManager.getInstance().updateDataConnectionTracker(mCurrentDds);
+        }
+
+        mCurrentDds = mQueuedDds;
+
+        // Update the DCT corresponds to the new DDS.
+        MSimProxyManager.getInstance().updateDataConnectionTracker(mCurrentDds);
+
+        // Enable the data connectivity on new dds.
+        logd("setDataSubscriptionSource is Successful"
+                + "  Enable Data Connectivity on Subscription " + mCurrentDds);
+        MSimProxyManager.getInstance().enableDataConnectivity(mCurrentDds);
+        mDataActive = true;
 
         // Reset the flag.
         mDisableDdsInProgress = false;
@@ -535,8 +566,11 @@ public class SubscriptionManager extends Handler {
                     // update the system property and enable the data connectivity.
                     mQueuedDds = mCurrentDds;
                     mDisableDdsInProgress = true;
+                    int[] ddsData = new int[2];
+                    ddsData[0] = mCurrentDds;
+                    ddsData[1] = 0; // Not a temporary switch
                     Message msgSetDdsDone = Message.obtain(this, EVENT_SET_DATA_SUBSCRIPTION_DONE,
-                            new Integer(mCurrentDds));
+                            ddsData);
                     // Set Data Subscription preference at RIL
                     mCi[mCurrentDds].setDataSubscription(msgSetDdsDone);
                     mSetDdsRequired = false;
@@ -551,8 +585,11 @@ public class SubscriptionManager extends Handler {
             if (subId == mCurrentDds) {
                 logd("Register for the all data disconnect");
                 mDdsSwitchRegistrants.notifyRegistrants();
+                int[] ddsData = new int[2];
+                ddsData[0] = subId;
+                ddsData[1] = 0; // Not a temporary switch
                 MSimProxyManager.getInstance().registerForAllDataDisconnected(subId, this,
-                        EVENT_ALL_DATA_DISCONNECTED, new Integer(subId));
+                        EVENT_ALL_DATA_DISCONNECTED, ddsData);
             } else {
                 updateSubPreferences();
                 notifySubscriptionDeactivated(subId);
@@ -887,8 +924,11 @@ public class SubscriptionManager extends Handler {
                 subId = SubscriptionId.values()[subscription];
                 if (getCurrentSubscriptionReadiness(subId)) {
                     mQueuedDds = subscription;
+                    int[] ddsData = new int[2];
+                    ddsData[0] = subscription;
+                    ddsData[1] = 0; // Not a temporary switch
                     Message callback = Message.obtain(this, EVENT_SET_DATA_SUBSCRIPTION_DONE,
-                            Integer.toString(subscription));
+                            ddsData);
                     mDisableDdsInProgress = true;
                     logd("update setDataSubscription to " + subscription);
                     mCi[subscription].setDataSubscription(callback);
@@ -1509,6 +1549,18 @@ public class SubscriptionManager extends Handler {
      * @param onCompleteMsg
      */
     public void setDataSubscription(int subscription, Message onCompleteMsg) {
+        setDataSubscription(subscription, false, onCompleteMsg);
+    }
+
+    /**
+     * Sets the designated data subscription source(DDS).
+     * @param subscription
+     * @param isTemporarySwitch - Decides if this is a temporary dds switch.
+     *        eg: DDS switch for MMS transaction on non-DDS sub.
+     * @param onCompleteMsg
+     */
+    public void setDataSubscription(int subscription, boolean isTemporarySwitch,
+            Message onCompleteMsg) {
         boolean result = false;
         RuntimeException exception;
 
@@ -1527,11 +1579,12 @@ public class SubscriptionManager extends Handler {
                 mSetDdsCompleteMsg = onCompleteMsg;
                 mQueuedDds = subscription;
                 mDisableDdsInProgress = true;
-
+                int[] ddsData = new int[2];
+                ddsData[0] = mQueuedDds;
+                ddsData[1] = (isTemporarySwitch? 1: 0);
                 // Set the DDS in cmd interface
                 Message msgSetDataSub = Message.obtain(this,
-                        EVENT_SET_DATA_SUBSCRIPTION_DONE,
-                        new Integer(mQueuedDds));
+                        EVENT_SET_DATA_SUBSCRIPTION_DONE, ddsData);
                 Rlog.d(LOG_TAG, "Set DDS to " + mQueuedDds
                         + " Calling cmd interface setDataSubscription");
                 mCi[mQueuedDds].setDataSubscription(msgSetDataSub);
