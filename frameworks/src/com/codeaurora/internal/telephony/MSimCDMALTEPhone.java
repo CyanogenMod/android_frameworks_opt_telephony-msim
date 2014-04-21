@@ -175,6 +175,19 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                 onSubscriptionDeactivated();
                 break;
 
+            case EVENT_GET_BASEBAND_VERSION_DONE:
+                AsyncResult ar;
+                ar = (AsyncResult)msg.obj;
+
+                if (ar.exception != null) {
+                    break;
+                }
+
+                log("Baseband version: " + ar.result);
+                super.setSystemProperty(TelephonyProperties.PROPERTY_BASEBAND_VERSION,
+                        (String)ar.result);
+            break;
+
             default:
                 super.handleMessage(msg);
         }
