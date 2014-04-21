@@ -109,11 +109,11 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
 
     public void sendTextWithOptions(String callingPackage, String destAddr, String scAddr,
             String text, PendingIntent sentIntent, PendingIntent deliveryIntent,
-            int priority, boolean isExpectMore, int subscription) {
+            int priority, boolean isExpectMore, int validityPeriod, int subscription) {
         MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subscription);
         if (iccSmsIntMgr != null) {
             iccSmsIntMgr.sendTextWithOptions(callingPackage, destAddr, scAddr, text, sentIntent,
-                    deliveryIntent, priority, isExpectMore);
+                    deliveryIntent, priority, isExpectMore, validityPeriod);
         } else {
             Rlog.e(LOG_TAG,"sendTextWithOptions iccSmsIntMgr is null for" +
                           " Subscription:"+subscription);
@@ -137,11 +137,11 @@ public class MSimIccSmsInterfaceManagerProxy extends ISmsMSim.Stub {
     public void sendMultipartTextWithOptions(String callingPackage, String destAddr,
             String scAddr, List<String> parts, List<PendingIntent> sentIntents,
             List<PendingIntent> deliveryIntents, int priority, boolean isExpectMore,
-            int subscription) throws android.os.RemoteException {
+            int validityPeriod, int subscription) throws android.os.RemoteException {
         MSimIccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subscription);
         if (iccSmsIntMgr != null ) {
             iccSmsIntMgr.sendMultipartTextWithOptions(callingPackage, destAddr, scAddr, parts,
-                    sentIntents, deliveryIntents, priority, isExpectMore);
+                    sentIntents, deliveryIntents, priority, isExpectMore, validityPeriod);
         } else {
             Rlog.e(LOG_TAG,"sendMultipartTextWithOptions iccSmsIntMgr is null for" +
                           " Subscription:"+subscription);
