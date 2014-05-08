@@ -178,6 +178,7 @@ public class MSimCatService extends CatService {
     @Override
     protected void broadcastCatCmdIntent(CatCmdMessage cmdMsg) {
         Intent intent = new Intent(AppInterface.CAT_CMD_ACTION);
+        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
         intent.putExtra("STK CMD", cmdMsg);
         intent.putExtra("SLOT_ID", mSlotId);
         CatLog.d(this, "Sending CmdMsg: " + cmdMsg+ " on slotid:" + mSlotId);
@@ -194,6 +195,7 @@ public class MSimCatService extends CatService {
 
         mCurrntCmd = mMenuCmd;
         Intent intent = new Intent(AppInterface.CAT_SESSION_END_ACTION);
+        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
         intent.putExtra("SLOT_ID", mSlotId);
         mContext.sendBroadcast(intent);
     }
@@ -208,6 +210,7 @@ public class MSimCatService extends CatService {
     protected void  broadcastCardStateAndIccRefreshResp(CardState cardState,
             IccRefreshResponse IccRefreshState) {
         Intent intent = new Intent(AppInterface.CAT_ICC_STATUS_CHANGE);
+        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
         boolean cardStatus = (cardState == CardState.CARDSTATE_PRESENT);
 
         if (IccRefreshState != null) {
@@ -255,6 +258,7 @@ public class MSimCatService extends CatService {
         CatLog.d(this, "Broadcasting STK Alpha message from card: " + alphaString +
                 " on slotid: " + mSlotId);
         Intent intent = new Intent(AppInterface.CAT_ALPHA_NOTIFY_ACTION);
+        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
         intent.putExtra(AppInterface.ALPHA_STRING, alphaString);
         intent.putExtra("SLOT_ID", mSlotId);
         mContext.sendBroadcast(intent);

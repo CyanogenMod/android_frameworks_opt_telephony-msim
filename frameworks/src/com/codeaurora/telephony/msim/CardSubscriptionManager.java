@@ -140,13 +140,11 @@ public class CardSubscriptionManager extends Handler {
 
 
     //***** Events
-    private static final int EVENT_RADIO_OFF_OR_NOT_AVAILABLE = 0;
-    private static final int EVENT_RADIO_ON = 1;
+    private static final int EVENT_RADIO_NOT_AVAILABLE = 1;
     private static final int EVENT_ICC_CHANGED = 2;
     private static final int EVENT_GET_ICCID_DONE = 3;
     private static final int EVENT_UPDATE_UICC_STATUS = 4;
     private static final int EVENT_SIM_REFRESH = 5;
-    private static final int EVENT_RADIO_NOT_AVAILABLE = 6;
 
     //***** Class Variables
     private static CardSubscriptionManager sCardSubscriptionManager;
@@ -155,7 +153,6 @@ public class CardSubscriptionManager extends Handler {
     private CommandsInterface[] mCi;
     private MSimUiccController mUiccController;
     private int mNumPhones = MSimTelephonyManager.getDefault().getPhoneCount();
-    private boolean[] mRadioOn = new boolean[mNumPhones];
     private boolean[] mSubActivated = new boolean[mNumPhones];
 
     private int mUpdateUiccStatusContext = 0;
@@ -196,13 +193,10 @@ public class CardSubscriptionManager extends Handler {
         for (int i = 0; i < mCi.length; i++) {
             // Register for Subscription ready event for both the subscriptions.
             Integer slot = new Integer(i);
-            mCi[i].registerForOffOrNotAvailable(this, EVENT_RADIO_OFF_OR_NOT_AVAILABLE, slot);
             mCi[i].registerForNotAvailable(this, EVENT_RADIO_NOT_AVAILABLE, slot);
-            mCi[i].registerForOn(this, EVENT_RADIO_ON, slot);
 
             // Register for SIM Refresh events
             mCi[i].registerForIccRefresh(this, EVENT_SIM_REFRESH, new Integer(i));
-            mRadioOn[i] = false;
             mSubActivated[i] = false;
         }
 
@@ -227,16 +221,6 @@ public class CardSubscriptionManager extends Handler {
     @Override
     public void handleMessage(Message msg) {
         switch(msg.what) {
-            case EVENT_RADIO_OFF_OR_NOT_AVAILABLE:
-                logd("EVENT_RADIO_OFF_OR_NOT_AVAILABLE");
-                processRadioOffOrNotAvailable((AsyncResult)msg.obj);
-                break;
-
-            case EVENT_RADIO_ON:
-                logd("EVENT_RADIO_ON");
-                processRadioOn((AsyncResult)msg.obj);
-                break;
-
             case EVENT_RADIO_NOT_AVAILABLE:
                 logd("EVENT_RADIO_NOT_AVAILABLE");
                 processRadioNotAvailable((AsyncResult)msg.obj);
@@ -286,35 +270,12 @@ public class CardSubscriptionManager extends Handler {
         }
     }
 
-    private void processRadioOffOrNotAvailable(AsyncResult ar) {
-        Integer cardIndex = (Integer)ar.userObj;
-
-        logd("processRadioOffOrNotAvailable on cardIndex = " + cardIndex);
-
-        if (cardIndex >= 0 && cardIndex < mRadioOn.length) {
-            mRadioOn[cardIndex] = false;
-            //If sub is deactivated then reset card info.
-            if (mSubActivated[cardIndex] == false) {
-                resetCardInfo(cardIndex);
-                //CardInfo is not valid. Inform others that card info not available.
-                notifyCardInfoNotAvailable(cardIndex,
-                        CardUnavailableReason.REASON_RADIO_UNAVAILABLE);
-                // Reset the flag card info available to false, so that
-                // next time it notifies all cards info available.
-                mAllCardsInfoAvailable = false;
-            }
-        } else {
-            logd("Invalid Index!!!");
-        }
-    }
-
     private void processRadioNotAvailable(AsyncResult ar) {
         Integer cardIndex = (Integer)ar.userObj;
 
         logd("processRadioNotAvailable on cardIndex = " + cardIndex);
 
-        if (cardIndex >= 0 && cardIndex < mRadioOn.length) {
-            mRadioOn[cardIndex] = false;
+        if (cardIndex >= 0 && cardIndex < mNumPhones) {
             //Radio unavailable comes in case of rild crash or Modem SSR.
             //reset card info in case of radio Unavailable in order to send SET_UICC later.
             resetCardInfo(cardIndex);
@@ -325,18 +286,6 @@ public class CardSubscriptionManager extends Handler {
             // Reset the flag card info available to false, so that
             // next time it notifies all cards info available.
             mAllCardsInfoAvailable = false;
-        } else {
-            logd("Invalid Index!!!");
-        }
-    }
-
-    private void processRadioOn(AsyncResult ar) {
-        Integer cardIndex = (Integer)ar.userObj;
-
-        logd("processRadioOn on cardIndex = " + cardIndex);
-
-        if (cardIndex >= 0 && cardIndex < mRadioOn.length) {
-            mRadioOn[cardIndex] = true;
         } else {
             logd("Invalid Index!!!");
         }
@@ -353,10 +302,6 @@ public class CardSubscriptionManager extends Handler {
 
         if ((ar.exception == null) && (ar.result != null)) {
             Integer cardIndex = (Integer) ar.result;
-            if (!mRadioOn[cardIndex]) {
-                logd("handleIccChanged: radio not available - EXIT");
-                return;
-            }
             UiccCard uiccCard = mUiccController.getUiccCards()[cardIndex];
             UiccCard card = mUiccCardList.get(cardIndex).getUiccCard();
 
@@ -496,11 +441,6 @@ public class CardSubscriptionManager extends Handler {
 
         logd("handleGetIccIdDone: cardIndex = " + cardIndex);
 
-        if (!mRadioOn[cardIndex]) {
-            logd("handleGetIccIdDone: radio not available - EXIT");
-            return;
-        }
-
         String iccId = null;
 
         if (ar.exception != null) {
@@ -637,8 +577,7 @@ public class CardSubscriptionManager extends Handler {
             uiccCard = cardInfo.getUiccCard();
         }
 
-        if (uiccCard == null || mRadioOn[cardIndex] == false) {
-            logd("onUpdateUiccStatus(): mRadioOn[" + cardIndex + "] = " + mRadioOn[cardIndex]);
+        if (uiccCard == null) {
             logd("onUpdateUiccStatus(): NO Card!!!!! at index : " + cardIndex);
             if (mCardSubData[cardIndex] != null) {
                 // Card is removed.
@@ -750,7 +689,7 @@ public class CardSubscriptionManager extends Handler {
 
         // Required to notify only once!!!
         // Notify if all card info is available.
-        if (isValidCards() && !mAllCardsInfoAvailable && mRadioOn[cardIndex]) {
+        if (isValidCards() && !mAllCardsInfoAvailable) {
             mAllCardsInfoAvailable = true;
             notifyAllCardsInfoAvailable();
         }

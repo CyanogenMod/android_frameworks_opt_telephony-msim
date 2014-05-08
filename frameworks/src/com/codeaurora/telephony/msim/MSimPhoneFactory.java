@@ -385,7 +385,7 @@ public class MSimPhoneFactory extends PhoneFactory {
         Rlog.d(LOG_TAG, "setSMSPromptOption to " + enabled);
     }
 
-    /* Gets User preferred Data subscription setting*/
+    /* Gets current Data subscription setting*/
     public static int getDataSubscription() {
         int subscription = 0;
 
@@ -404,6 +404,19 @@ public class MSimPhoneFactory extends PhoneFactory {
 
         return subscription;
     }
+
+    /* Gets default/user preferred Data subscription setting*/
+    public static int getDefaultDataSubscription() {
+        int subscription = 0;
+        try {
+            subscription = Settings.Global.getInt(sContext.getContentResolver(),
+                    Settings.Global.MULTI_SIM_DEFAULT_DATA_CALL_SUBSCRIPTION);
+        } catch (SettingNotFoundException snfe) {
+            Rlog.e(LOG_TAG, "Settings Exception Reading Multi Sim Default Data Call Values");
+        }
+        return subscription;
+    }
+
 
     /* Gets User preferred SMS subscription setting*/
     public static int getSMSSubscription() {
@@ -465,11 +478,18 @@ public class MSimPhoneFactory extends PhoneFactory {
         Rlog.d(LOG_TAG, "set data_roaming: " + enabled);
     }
 
+    static public void setDefaultDataSubscription(int subscription) {
+        Settings.Global.putInt(sContext.getContentResolver(),
+                Settings.Global.MULTI_SIM_DEFAULT_DATA_CALL_SUBSCRIPTION, subscription);
+        Rlog.d(LOG_TAG, "setUserPrefDataSubscription: " + subscription);
+    }
+
     static public void setSMSSubscription(int subscription) {
         Settings.Global.putInt(sContext.getContentResolver(),
                 Settings.Global.MULTI_SIM_SMS_SUBSCRIPTION, subscription);
 
         Intent intent = new Intent("com.android.mms.transaction.SEND_MESSAGE");
+        intent.putExtra(MSimConstants.SUBSCRIPTION_KEY, subscription);
         sContext.sendBroadcast(intent);
 
         // Change occured in SMS preferred sub, update the default

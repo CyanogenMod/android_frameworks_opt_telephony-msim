@@ -42,8 +42,10 @@ import com.android.internal.telephony.RIL;
 
 import com.codeaurora.telephony.msim.Subscription.SubscriptionStatus;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Message;
@@ -132,6 +134,7 @@ public class SubscriptionManager extends Handler {
     private static final int EVENT_PROCESS_AVAILABLE_CARDS = 10;
     private static final int EVENT_SET_PRIORITY_SUBSCRIPTION_DONE = 11;
     private static final int EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE = 12;
+    private static final int EVENT_SHUTDOWN_ACTION_RECEIVED = 13;
 
     // Set Subscription Return status
     public static final String SUB_ACTIVATE_SUCCESS = "ACTIVATE SUCCESS";
@@ -161,7 +164,6 @@ public class SubscriptionManager extends Handler {
 
     private boolean[] mCardInfoAvailable = new boolean[mNumPhones];
     private boolean[] mIsNewCard = new boolean[mNumPhones];
-    private boolean[] mRadioOn = new boolean[mNumPhones];
 
     private HashMap<SubscriptionId, Subscription> mActivatePending;
     private HashMap<SubscriptionId, Subscription> mDeactivatePending;
@@ -197,6 +199,19 @@ public class SubscriptionManager extends Handler {
         SUB1,
         SUB2
     }
+
+    private boolean mIsShutDownInProgress = false;
+
+    private BroadcastReceiver mShutDownReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (Intent.ACTION_SHUTDOWN.equals(intent.getAction()) &&
+                        !intent.getBooleanExtra(Intent.EXTRA_SHUTDOWN_USERSPACE_ONLY, false)) {
+                    logd("ACTION_SHUTDOWN Received");
+                    sendEmptyMessage(EVENT_SHUTDOWN_ACTION_RECEIVED);
+                }
+            }
+        };
 
     /**
      * Get singleton instance of SubscriptionManager.
@@ -240,7 +255,7 @@ public class SubscriptionManager extends Handler {
 
         mCardSubMgr = CardSubscriptionManager.getInstance(context, uiccController, ci);
         for (int i=0; i < mNumPhones; i++) {
-	            mCardSubMgr.registerForCardInfoAvailable(i, this,
+            mCardSubMgr.registerForCardInfoAvailable(i, this,
                     EVENT_CARD_INFO_AVAILABLE, new Integer(i));
             mCardSubMgr.registerForCardInfoUnavailable(i, this,
                     EVENT_CARD_INFO_NOT_AVAILABLE, new Integer(i));
@@ -257,7 +272,6 @@ public class SubscriptionManager extends Handler {
 
             mCardInfoAvailable[i] = false;
             mIsNewCard[i] = false;
-            mRadioOn[i] = false;
         }
 
         mSubDeactivatedRegistrants = new RegistrantList[mNumPhones];
@@ -276,15 +290,27 @@ public class SubscriptionManager extends Handler {
         }
 
         //mMSimProxyManager = MSimProxyManager.getInstance();
-        // Get the current active dds
+        // Get the current active dds and default dds settings.
         mCurrentDds =  MSimPhoneFactory.getDataSubscription();
-        logd("In MSimProxyManager constructor current active dds is:" + mCurrentDds);
+        int defaultDds =  MSimPhoneFactory.getDefaultDataSubscription();
+        logd("In MSimProxyManager constructor current active dds is:" + mCurrentDds
+                +  " default Dds = " + defaultDds);
+        if (mCurrentDds != defaultDds) {
+            /* There was a temporary dds switch and phone power cycled or phone process
+               restarted before the dds was switched back to original setting.
+               Switch back to default dds. */
+            MSimPhoneFactory.setDataSubscription(defaultDds);
+            mCurrentDds = defaultDds;
+        }
 
         mCurrentSubscriptions = new HashMap<SubscriptionId, PhoneSubscriptionInfo>();
         for (int i = 0; i < mNumPhones; i++) {
             SubscriptionId sub = SubscriptionId.values()[i];
             mCurrentSubscriptions.put(sub, new PhoneSubscriptionInfo());
         }
+
+        IntentFilter filter = new IntentFilter(Intent.ACTION_SHUTDOWN);
+        mContext.registerReceiver(mShutDownReceiver, filter);
         logd("Constructor - Exit");
     }
 
@@ -297,21 +323,15 @@ public class SubscriptionManager extends Handler {
                 ar = (AsyncResult)msg.obj;
                 subId = (Integer)ar.userObj;
                 logd("EVENT_RADIO_OFF_OR_NOT_AVAILABLE on SUB: " + subId);
-                mRadioOn[subId] = false;
-                if (!isAllRadioOn()) {
-                    mSetSubscriptionInProgress = false;
-                    mSetDdsRequired = true;
-                }
+                mSetSubscriptionInProgress = false;
+                mSetDdsRequired = true;
                 break;
 
             case EVENT_RADIO_ON:
                 ar = (AsyncResult)msg.obj;
                 subId = (Integer)ar.userObj;
                 logd("EVENT_RADIO_ON on SUB: " + subId);
-                mRadioOn[subId] = true;
-                if (isAllRadioOn()) {
-                   sendDefaultSubsInfo();
-                }
+                sendDefaultSubsInfo();
                 break;
 
             case EVENT_CARD_INFO_AVAILABLE:
@@ -367,6 +387,12 @@ public class SubscriptionManager extends Handler {
                 Rlog.d(LOG_TAG, "EVENT_SET_DEFAULT_VOICE_SUBSCRIPTION_DONE");
                 processSetDefaultVoiceSubscriptionDone((AsyncResult)msg.obj);
                 break;
+
+            case EVENT_SHUTDOWN_ACTION_RECEIVED:
+                logd("EVENT_SHUTDOWN_ACTION_RECEIVED");
+                mIsShutDownInProgress = true;
+                break;
+
             default:
                 break;
         }
@@ -438,8 +464,18 @@ public class SubscriptionManager extends Handler {
             return;
         }
 
-        Integer sub = (Integer)ar.userObj;
-        logd("processAllDataDisconnected: sub = " + sub);
+        Integer sub = null;
+        boolean isTempSwitch = false;
+        if (ar.userObj != null) {
+            int[] ddsData = (int[])(ar.userObj);
+            sub = ddsData[0];
+            isTempSwitch = (ddsData[1] == 1);
+        } else {
+            loge("processAllDataDisconnected: ar.userObj corrupt");
+            return;
+        }
+
+        logd("processAllDataDisconnected: sub = " + sub + " , isTempSwitch = " + isTempSwitch);
         MSimProxyManager.getInstance().unregisterForAllDataDisconnected(sub, this);
 
         /*
@@ -447,7 +483,7 @@ public class SubscriptionManager extends Handler {
          * subscription.
          */
         if (mDisableDdsInProgress) {
-            processDisableDataConnectionDone(ar);
+            updateDataSubscription(isTempSwitch);
             return;
         }
 
@@ -468,9 +504,20 @@ public class SubscriptionManager extends Handler {
      */
     private void processSetDataSubscriptionDone(AsyncResult ar) {
         if (ar.exception == null) {
-            logd("Register for the all data disconnect");
+            boolean isTempSwitch = false;
+            if (ar.userObj != null) {
+                int[] ddsData = (int[])(ar.userObj);
+                isTempSwitch = (ddsData[1] == 1);
+            } else {
+                loge("processSetDataSubscriptionDone: ar.userObj corrupt");
+                return;
+            }
+            logd("Register for the all data disconnect, isTempSwitch = " + isTempSwitch);
+            int[] ddsData = new int[2];
+            ddsData[0] = mCurrentDds;
+            ddsData[1] = (isTempSwitch? 1: 0);
             MSimProxyManager.getInstance().registerForAllDataDisconnected(mCurrentDds, this,
-                    EVENT_ALL_DATA_DISCONNECTED, new Integer(mCurrentDds));
+                    EVENT_ALL_DATA_DISCONNECTED, ddsData);
             mDdsSwitchRegistrants.notifyRegistrants();
         } else {
             Rlog.d(LOG_TAG, "setDataSubscriptionSource Failed : ");
@@ -489,32 +536,33 @@ public class SubscriptionManager extends Handler {
         }
     }
 
-    private void processDisableDataConnectionDone(AsyncResult ar) {
-        //if SUCCESS
-        if (ar != null) {
-            // Mark this as the current dds
-            MSimPhoneFactory.setDataSubscription(mQueuedDds);
+    private void updateDataSubscription(boolean isTemporarySwitch) {
+        logd("updateDefaultDataSubscription: isTempSwitch = " + isTemporarySwitch);
+        // Mark this as the current dds
+        MSimPhoneFactory.setDataSubscription(mQueuedDds);
 
-            if (mCurrentDds != mQueuedDds) {
-                // The current DDS is changed.  Call update to unregister for all the
-                // events in DCT to avoid unnecessary processings in the non-DDS.
-                MSimProxyManager.getInstance().updateDataConnectionTracker(mCurrentDds);
-            }
-
-            mCurrentDds = mQueuedDds;
-
-            // Update the DCT corresponds to the new DDS.
-            MSimProxyManager.getInstance().updateDataConnectionTracker(mCurrentDds);
-
-            // Enable the data connectivity on new dds.
-            logd("setDataSubscriptionSource is Successful"
-                    + "  Enable Data Connectivity on Subscription " + mCurrentDds);
-            MSimProxyManager.getInstance().enableDataConnectivity(mCurrentDds);
-            mDataActive = true;
-        } else {
-            //This should not occur as it is a self posted message
-            Rlog.d(LOG_TAG, "Disabling Data Subscription Failed");
+        /* Save the user preferred data subscription in DB if it is not a temporary
+           DDS switch.*/
+        if (!isTemporarySwitch) {
+            MSimPhoneFactory.setDefaultDataSubscription(mQueuedDds);
         }
+
+        if (mCurrentDds != mQueuedDds) {
+            // The current DDS is changed.  Call update to unregister for all the
+            // events in DCT to avoid unnecessary processings in the non-DDS.
+            MSimProxyManager.getInstance().updateDataConnectionTracker(mCurrentDds);
+        }
+
+        mCurrentDds = mQueuedDds;
+
+        // Update the DCT corresponds to the new DDS.
+        MSimProxyManager.getInstance().updateDataConnectionTracker(mCurrentDds);
+
+        // Enable the data connectivity on new dds.
+        logd("setDataSubscriptionSource is Successful"
+                + "  Enable Data Connectivity on Subscription " + mCurrentDds);
+        MSimProxyManager.getInstance().enableDataConnectivity(mCurrentDds);
+        mDataActive = true;
 
         // Reset the flag.
         mDisableDdsInProgress = false;
@@ -533,11 +581,6 @@ public class SubscriptionManager extends Handler {
      * @param ar
      */
     private void processCleanupDataConnectionDone(Integer subId) {
-        if (!mRadioOn[subId]) {
-           logd("processCleanupDataConnectionDone: Radio Not Available on subId = " + subId);
-           return;
-        }
-
         // Cleanup data connection is done!  Start processing the
         // pending deactivate requests now.
         mDataActive = false;
@@ -555,11 +598,6 @@ public class SubscriptionManager extends Handler {
         boolean isSubReady = mCurrentSubscriptions.get(sub).subReady;
         logd("processSubscriptionStatusChanged sub = " + subId
                 + " actStatus = " + actStatus);
-
-        if (!mRadioOn[subId]) {
-           logd("processSubscriptionStatusChanged: Radio Not Available on subId = " + subId);
-           return;
-        }
 
         if ((isSubReady == true && actStatus == SUB_STATUS_ACTIVATED) ||
                 (isSubReady == false && actStatus == SUB_STATUS_DEACTIVATED)) {
@@ -579,8 +617,11 @@ public class SubscriptionManager extends Handler {
                     // update the system property and enable the data connectivity.
                     mQueuedDds = mCurrentDds;
                     mDisableDdsInProgress = true;
+                    int[] ddsData = new int[2];
+                    ddsData[0] = mCurrentDds;
+                    ddsData[1] = 0; // Not a temporary switch
                     Message msgSetDdsDone = Message.obtain(this, EVENT_SET_DATA_SUBSCRIPTION_DONE,
-                            new Integer(mCurrentDds));
+                            ddsData);
                     // Set Data Subscription preference at RIL
                     mCi[mCurrentDds].setDataSubscription(msgSetDdsDone);
                     mSetDdsRequired = false;
@@ -595,8 +636,11 @@ public class SubscriptionManager extends Handler {
             if (subId == mCurrentDds) {
                 logd("Register for the all data disconnect");
                 mDdsSwitchRegistrants.notifyRegistrants();
+                int[] ddsData = new int[2];
+                ddsData[0] = subId;
+                ddsData[1] = 0; // Not a temporary switch
                 MSimProxyManager.getInstance().registerForAllDataDisconnected(subId, this,
-                        EVENT_ALL_DATA_DISCONNECTED, new Integer(subId));
+                        EVENT_ALL_DATA_DISCONNECTED, ddsData);
             } else {
                 updateSubPreferences();
                 notifySubscriptionDeactivated(subId);
@@ -617,12 +661,6 @@ public class SubscriptionManager extends Handler {
         String cause = null;
         SubscriptionStatus subStatus = SubscriptionStatus.SUB_INVALID;
         Subscription currentSub = null;
-
-        if (!mRadioOn[setSubParam.subId]) {
-           logd("processSetUiccSubscriptionDone: Radio Not Available on subId = "
-                + setSubParam.subId);
-           return;
-        }
 
         if (setSubParam.appType.equals("GLOBAL") &&
                 (setSubParam.subStatus == SubscriptionStatus.SUB_ACTIVATE)) {
@@ -866,15 +904,32 @@ public class SubscriptionManager extends Handler {
      * Updates the subscriptions preferences based on the number of active subscriptions.
      */
     private void updateSubPreferences() {
+        if (mIsShutDownInProgress) {
+            logd("updateSubPreferences: Shutdown in progress. Do not update sub prefernces");
+            return;
+        }
+
         int activeSubCount = 0;
 
         for (int i = 0; i < mNumPhones; i++) {
             SubscriptionId sub = SubscriptionId.values()[i];
             if (getCurrentSubscriptionStatus(sub) == SubscriptionStatus.SUB_ACTIVATED) {
                 activeSubCount++;
+            } else {
+                // If there any pending activation requests on the deactivated sub, we
+                // should not update sub preferences, instead wait for the activations to complete.
+                // This can happen when user changes the subscription app within the same sub.
+                // For ex: CSIM->Global, Global->CSIM etc.
+                if (mSetSubscriptionInProgress && isAnyPendingActivateRequest(i)) {
+                    logd("updateSubPreferences: Sub" + i
+                            + " has pending activation reqs. Do not update sub prefs now.");
+                    return;
+                }
             }
         }
 
+        logd("updateSubPreferences: activeSubCount = " + activeSubCount
+                + " mNumPhones = " + mNumPhones);
         // If preferred subscription is deactivated then check next available subscription and
         // set that subscription as preferred for voice/sms/data.
         if (activeSubCount > 0 && activeSubCount < mNumPhones) {
@@ -920,8 +975,11 @@ public class SubscriptionManager extends Handler {
                 subId = SubscriptionId.values()[subscription];
                 if (getCurrentSubscriptionReadiness(subId)) {
                     mQueuedDds = subscription;
+                    int[] ddsData = new int[2];
+                    ddsData[0] = subscription;
+                    ddsData[1] = 0; // Not a temporary switch
                     Message callback = Message.obtain(this, EVENT_SET_DATA_SUBSCRIPTION_DONE,
-                            Integer.toString(subscription));
+                            ddsData);
                     mDisableDdsInProgress = true;
                     logd("update setDataSubscription to " + subscription);
                     mCi[subscription].setDataSubscription(callback);
@@ -941,11 +999,6 @@ public class SubscriptionManager extends Handler {
      * Handles EVENT_ALL_CARDS_INFO_AVAILABLE.
      */
     private void processAllCardsInfoAvailable() {
-        if (!isAllRadioOn()) {
-           logd("processAllCardsInfoAvailable: Radio Not Available ");
-           return;
-        }
-
         int availableCards = 0;
         mAllCardsStatusAvailable = true;
 
@@ -974,10 +1027,6 @@ public class SubscriptionManager extends Handler {
      * Handles EVENT_PROCESS_AVAILABLE_CARDS
      */
     private void processAvailableCards() {
-        if (!isAllRadioOn()) {
-           logd("processAvailableCards: Radio Not Available ");
-           return;
-        }
         if (mSetSubscriptionInProgress) {
            logd("processAvailableCards: set subscription in progress!!");
            return;
@@ -1094,11 +1143,6 @@ public class SubscriptionManager extends Handler {
     private void processCardInfoAvailable(AsyncResult ar) {
         Integer cardIndex = (Integer)ar.userObj;
 
-        if (!mRadioOn[cardIndex]) {
-           logd("processCardInfoAvailable: Radio Not Available on cardIndex = " + cardIndex);
-           return;
-        }
-
         mCardInfoAvailable[cardIndex] = true;
 
         logd("processCardInfoAvailable: CARD:" + cardIndex + " is available");
@@ -1149,14 +1193,6 @@ public class SubscriptionManager extends Handler {
         setSubscriptionIntent.putExtra("NOTIFY_NEW_CARD_AVAILABLE", true);
 
         mContext.startActivity(setSubscriptionIntent);
-    }
-
-    private boolean isAllRadioOn() {
-        boolean result = true;
-        for (boolean radioOn : mRadioOn) {
-            result = result && radioOn;
-        }
-        return result;
     }
 
     private boolean isAllCardsInfoAvailable() {
@@ -1210,6 +1246,7 @@ public class SubscriptionManager extends Handler {
             // Card has been removed from slot - cardIndex.
             // Mark the active subscription from this card as de-activated!!
             resetCurrentSubscription(sub);
+            updateSubPreferences();
             notifySubscriptionDeactivated(sub.ordinal());
         }
 
@@ -1574,6 +1611,18 @@ public class SubscriptionManager extends Handler {
      * @param onCompleteMsg
      */
     public void setDataSubscription(int subscription, Message onCompleteMsg) {
+        setDataSubscription(subscription, false, onCompleteMsg);
+    }
+
+    /**
+     * Sets the designated data subscription source(DDS).
+     * @param subscription
+     * @param isTemporarySwitch - Decides if this is a temporary dds switch.
+     *        eg: DDS switch for MMS transaction on non-DDS sub.
+     * @param onCompleteMsg
+     */
+    public void setDataSubscription(int subscription, boolean isTemporarySwitch,
+            Message onCompleteMsg) {
         boolean result = false;
         RuntimeException exception;
 
@@ -1592,11 +1641,12 @@ public class SubscriptionManager extends Handler {
                 mSetDdsCompleteMsg = onCompleteMsg;
                 mQueuedDds = subscription;
                 mDisableDdsInProgress = true;
-
+                int[] ddsData = new int[2];
+                ddsData[0] = mQueuedDds;
+                ddsData[1] = (isTemporarySwitch? 1: 0);
                 // Set the DDS in cmd interface
                 Message msgSetDataSub = Message.obtain(this,
-                        EVENT_SET_DATA_SUBSCRIPTION_DONE,
-                        new Integer(mQueuedDds));
+                        EVENT_SET_DATA_SUBSCRIPTION_DONE, ddsData);
                 Rlog.d(LOG_TAG, "Set DDS to " + mQueuedDds
                         + " Calling cmd interface setDataSubscription");
                 mCi[mQueuedDds].setDataSubscription(msgSetDataSub);

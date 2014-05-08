@@ -89,7 +89,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
         mSubscription = subscription;
 
-        Rlog.d(LOG_TAG, "MSimCDMALTEPhone: constructor: sub = " + mSubscription);
+        log("MSimCDMALTEPhone: constructor: sub = " + mSubscription);
 
         mDcTracker = new MSimDcTracker(this);
 
@@ -99,6 +99,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                 this, EVENT_SUBSCRIPTION_ACTIVATED, null);
         subMgr.registerForSubscriptionDeactivated(mSubscription,
                 this, EVENT_SUBSCRIPTION_DEACTIVATED, null);
+        mSubscriptionData = subMgr.getCurrentSubscription(mSubscription);
     }
 
     @Override
@@ -142,6 +143,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                 TelephonyProperties.PROPERTY_OTASP_NUM_SCHEMA,"");
 
         // Notify voicemails.
+        updateVoiceMail();
         notifier.notifyMessageWaitingChanged(this);
         setProperties();
     }
@@ -157,6 +159,11 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
     @Override
     public void handleMessage(Message msg) {
+        if (!mIsTheCurrentActivePhone) {
+            log("Received message " + msg + "on sub " + mSubscription +
+                    "[" + msg.what + "] while being destroyed. Ignoring.");
+            return;
+        }
         switch (msg.what) {
             case EVENT_SUBSCRIPTION_ACTIVATED:
                 log("EVENT_SUBSCRIPTION_ACTIVATED");
@@ -167,6 +174,19 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                 log("EVENT_SUBSCRIPTION_DEACTIVATED");
                 onSubscriptionDeactivated();
                 break;
+
+            case EVENT_GET_BASEBAND_VERSION_DONE:
+                AsyncResult ar;
+                ar = (AsyncResult)msg.obj;
+
+                if (ar.exception != null) {
+                    break;
+                }
+
+                log("Baseband version: " + ar.result);
+                super.setSystemProperty(TelephonyProperties.PROPERTY_BASEBAND_VERSION,
+                        (String)ar.result);
+            break;
 
             default:
                 super.handleMessage(msg);
@@ -196,7 +216,6 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
     }
 
     private void onSubscriptionDeactivated() {
-        mSubscriptionData = null;
     }
 
     //Gets Subscription information in the Phone Object
@@ -321,7 +340,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
                         : null));
         }
 
-        Rlog.d(LOG_TAG, "getOperatorNumeric: mCdmaSubscriptionSource = " + mCdmaSubscriptionSource
+        log("getOperatorNumeric: mCdmaSubscriptionSource = " + mCdmaSubscriptionSource
                 + " operatorNumeric = " + operatorNumeric);
 
         return operatorNumeric;
@@ -336,7 +355,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
         int currentDds = MSimPhoneFactory.getDataSubscription();
         String operatorNumeric = getOperatorNumeric();
 
-        Rlog.d(LOG_TAG, "updateCurrentCarrierInProvider: mSubscription = " + getSubscription()
+        log("updateCurrentCarrierInProvider: mSubscription = " + getSubscription()
                 + " currentDds = " + currentDds + " operatorNumeric = " + operatorNumeric);
 
         if (!TextUtils.isEmpty(operatorNumeric) && (getSubscription() == currentDds)) {
@@ -383,7 +402,7 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
     @Override
     public String getDeviceSvn() {
-        Rlog.d(LOG_TAG, "getDeviceSvn(): return 0");
+        log("getDeviceSvn(): return 0");
         return "0";
     }
 
@@ -424,7 +443,11 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
 
     @Override
     protected void setCardInPhoneBook() {
-        if (mUiccController == null || mSubscriptionData == null) {
+        log("setCardInPhoneBook: mSubscriptionData : " + mSubscriptionData);
+        if (mUiccController == null || mSubscriptionData == null
+                || mSubscriptionData.slotId == -1 || mSubscriptionData.
+                subStatus != Subscription.SubscriptionStatus.SUB_ACTIVATED) {
+            mRuimPhoneBookInterfaceManager.setIccCard(null);
             return;
         }
 
