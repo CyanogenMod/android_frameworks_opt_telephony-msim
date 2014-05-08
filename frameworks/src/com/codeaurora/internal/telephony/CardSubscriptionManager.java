@@ -45,6 +45,7 @@ import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.uicc.UiccCard;
 import com.android.internal.telephony.uicc.UiccController;
 import com.android.internal.telephony.uicc.UiccCardApplication;
+import static com.codeaurora.telephony.msim.Subscription.SUBSCRIPTION_INDEX_INVALID;
 
 import android.content.Context;
 import android.os.AsyncResult;
@@ -510,27 +511,26 @@ public class CardSubscriptionManager extends Handler {
 
     public int[] getGlobalAppsIndex(int slotId) {
         CardInfo cardInfo = mUiccCardList.get(slotId);
-        int[] globalAppsIndex = new int[2];
+        int[] globalAppsIndex = new int[] {
+                SUBSCRIPTION_INDEX_INVALID, SUBSCRIPTION_INDEX_INVALID
+        };
+        // ensure 3gpp index is stored at 0th index and 3gpp2 index at 1st index
+        int index3gpp = 0;
+        int index3gpp2 = 1;
         if (cardInfo != null) {
             UiccCard uiccCard = cardInfo.getUiccCard();
             if (uiccCard != null) {
                 int numApps = uiccCard.getNumApplications();
-                boolean isGsmApp = true, isCdmaApp = true;
-                for (int appIndex = 0, index = 0; appIndex < numApps; appIndex++) {
+                for (int appIndex = 0; appIndex < numApps; appIndex++) {
                     UiccCardApplication uiccCardApp = uiccCard.getApplicationIndex(appIndex);
                     if (uiccCardApp != null) {
                         String subAppType = appTypetoString(uiccCardApp.getType());
-                        if ((subAppType.equals("SIM") || subAppType.equals("USIM"))
-                            && isGsmApp) {
-                            globalAppsIndex[index] = appIndex;
-                            isGsmApp = false;
-                            index++;
-                        }
-                        if ((subAppType.equals("CSIM") || subAppType.equals("RUIM"))
-                            && isCdmaApp) {
-                            globalAppsIndex[index] = appIndex;
-                            isCdmaApp = false;
-                            index++;
+                        if (("SIM".equals(subAppType) || "USIM".equals(subAppType))
+                                && globalAppsIndex[index3gpp] == SUBSCRIPTION_INDEX_INVALID) {
+                            globalAppsIndex[index3gpp] = appIndex;
+                        } else if ((subAppType.equals("CSIM") || subAppType.equals("RUIM"))
+                                && globalAppsIndex[index3gpp2] == SUBSCRIPTION_INDEX_INVALID) {
+                            globalAppsIndex[index3gpp2] = appIndex;
                         }
                     }
                 }
