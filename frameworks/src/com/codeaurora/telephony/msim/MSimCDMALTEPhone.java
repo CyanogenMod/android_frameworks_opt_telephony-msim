@@ -282,8 +282,6 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
         setIsoCountryProperty(operatorNumeric);
         // Updates MCC MNC device configuration information
         MccTable.updateMccMncConfiguration(mContext, operatorNumeric, false);
-        // Sets current entry in the telephony carrier table
-        updateCurrentCarrierInProvider();
     }
 
     @Override
@@ -368,6 +366,22 @@ public class MSimCDMALTEPhone extends CDMALTEPhone {
             } catch (SQLException e) {
                 Rlog.e(LOG_TAG, "Can't store current operator", e);
             }
+        }
+        return false;
+    }
+
+    /**
+     * Sets the "current" field in the telephony provider according to the operator numeric
+     * passed.
+     *
+     * @return true for success; false otherwise.
+     */
+    public boolean updateCurrentCarrierInProvider(String operatorNumeric) {
+        int currentDds = MSimPhoneFactory.getDataSubscription();
+        log("updateCurrentCarrierInProvider: mSubscription = " + getSubscription()
+                + " currentDds = " + currentDds + "with operatorNumeric = " + operatorNumeric);
+        if (getSubscription() == currentDds) {
+            return super.updateCurrentCarrierInProvider(operatorNumeric);
         }
         return false;
     }
