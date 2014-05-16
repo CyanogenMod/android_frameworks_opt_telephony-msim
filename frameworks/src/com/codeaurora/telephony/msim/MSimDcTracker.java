@@ -376,15 +376,8 @@ public final class MSimDcTracker extends DcTracker {
             mUserDataEnabled = Settings.Global.getInt(mPhone.getContext().getContentResolver(),
                     Settings.Global.MOBILE_DATA, 1) == 1;
 
-            if (mPhone instanceof MSimCDMALTEPhone) {
-                ((MSimCDMALTEPhone)mPhone).updateCurrentCarrierInProvider();
-                supplyMessenger();
-            } else if (mPhone instanceof MSimGSMPhone) {
-                ((MSimGSMPhone)mPhone).updateCurrentCarrierInProvider();
-                supplyMessenger();
-            } else {
-                log("Phone object is not MultiSim. This should not hit!!!!");
-            }
+            updateCurrentCarrierInProvider();
+            supplyMessenger();
 
         } else {
             unregisterForAllEvents();
