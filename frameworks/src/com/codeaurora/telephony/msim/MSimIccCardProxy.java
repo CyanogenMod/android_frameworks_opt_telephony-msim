@@ -202,7 +202,7 @@ public class MSimIccCardProxy extends IccCardProxy {
                 // Update MCC MNC device configuration information only for default sub.
                 if (sub == TelephonyManager.getDefaultSubscription()) {
                     log("Update mccmnc config for default subscription.");
-                    MccTable.updateMccMncConfiguration(mContext, operator);
+                    MccTable.updateMccMncConfiguration(mContext, operator, false);
                 }
             } else {
                 loge("updateproperty Operator name = " + operator + ", loaded = "
