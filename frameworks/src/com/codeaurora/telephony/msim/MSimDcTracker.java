@@ -24,7 +24,9 @@ import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Message;
 import android.os.RegistrantList;
+import android.os.SystemProperties;
 import android.provider.Settings;
+import android.telephony.MSimTelephonyManager;
 import android.telephony.Rlog;
 import android.telephony.ServiceState;
 
@@ -62,6 +64,9 @@ public final class MSimDcTracker extends DcTracker {
     private RegistrantList mAllDataDisconnectedRegistrants = new RegistrantList();
 
     protected int mDisconnectPendingCount = 0;
+
+    static final String PROPERTY_DATA_ALLOWED_ON_NON_DDS_SUBSCRIPTION =
+            "persist.radio.data_on_non_dds";
 
     MSimDcTracker(PhoneBase p) {
         super(p);
@@ -455,6 +460,26 @@ public final class MSimDcTracker extends DcTracker {
 
     public void unregisterForAllDataDisconnected(Handler h) {
         mAllDataDisconnectedRegistrants.remove(h);
+    }
+
+    @Override
+    protected boolean isDataAllowed(ApnContext apnContext) {
+        if (!SystemProperties.getBoolean(PROPERTY_DATA_ALLOWED_ON_NON_DDS_SUBSCRIPTION, false)) {
+            MSimTelephonyManager mtmgr = (MSimTelephonyManager)
+                    (mPhone.getContext()).getSystemService (Context.MSIM_TELEPHONY_SERVICE);
+
+            //If current DDS is not user preffered then don't allow default/IA/HIPRI PDP.
+            //Rest of APN types can be evaluated for remaining conditions.
+            if ((apnContext.getDataProfileType().equals(PhoneConstants.APN_TYPE_DEFAULT) ||
+                    apnContext.getDataProfileType().equals(PhoneConstants.APN_TYPE_IA) ||
+                    apnContext.getDataProfileType().equals(PhoneConstants.APN_TYPE_HIPRI)) &&
+                    (mtmgr.getPreferredDataSubscription()!= mtmgr.getDefaultDataSubscription())) {
+                log("Default data call activation not allowed if current " +
+                        "data subscription is not the user preferred data subscription");
+                return false;
+            }
+        }
+        return super.isDataAllowed(apnContext);
     }
 
     @Override
