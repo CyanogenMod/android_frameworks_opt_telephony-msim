@@ -77,6 +77,12 @@ public class MSimPhoneProxy extends PhoneProxy {
         ActivityManagerNative.broadcastStickyIntent(intent, null, UserHandle.USER_ALL);
     }
 
+    @Override
+    public void phoneObjectUpdater(int newVoiceRadioTech) {
+        super.phoneObjectUpdater(newVoiceRadioTech);
+        MSimPhoneFactory.updatePhoneSubInfo();
+    }
+
     public IccSmsInterfaceManager getIccSmsInterfaceManager(){
         return mIccSmsInterfaceManager;
     }

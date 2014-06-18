@@ -216,6 +216,7 @@ public class MSimPhoneFactory extends PhoneFactory {
                 sDefaultPhoneProxy.updateDefaultPhoneInSubInfo(sProxyPhone);
                 sDefaultPhoneProxy.updateDefaultSMSIntfManager(getSMSSubscription());
 
+                updatePhoneSubInfo();
                 // Ensure that we have a default SMS app. Requesting the app with
                 // updateIfNeeded set to true is enough to configure a default SMS app.
                 ComponentName componentName =
@@ -274,6 +275,14 @@ public class MSimPhoneFactory extends PhoneFactory {
             }
         }
         return sProxyPhones[subscription];
+    }
+
+    public static void updatePhoneSubInfo() {
+        int defaultSubId = getDefaultSubscription();
+        if (defaultSubId < 0 && defaultSubId >= sProxyPhones.length) {
+            defaultSubId = 0;
+        }
+        sDefaultPhoneProxy.updatePhoneSubInfo(sProxyPhones[defaultSubId].getPhoneSubInfo());
     }
 
     // TODO: move the get/set subscription APIs to SubscriptionManager
