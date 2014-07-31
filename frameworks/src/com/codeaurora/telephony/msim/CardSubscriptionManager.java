@@ -45,6 +45,7 @@ import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.uicc.UiccCard;
 import com.android.internal.telephony.uicc.UiccController;
 import com.android.internal.telephony.uicc.UiccCardApplication;
+import static com.codeaurora.telephony.msim.Subscription.SUBSCRIPTION_INDEX_INVALID;
 
 import android.content.Context;
 import android.os.AsyncResult;
@@ -52,6 +53,8 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.Registrant;
 import android.os.RegistrantList;
+import android.os.SystemProperties;
+import android.provider.Settings;
 import android.telephony.MSimTelephonyManager;
 import android.telephony.Rlog;
 
@@ -167,6 +170,12 @@ public class CardSubscriptionManager extends Handler {
     private ArrayList<CardInfo> mUiccCardList =
             new ArrayList<CardInfo>(mNumPhones);
     private boolean mAllCardsInfoAvailable = false;
+    private Context mContext;
+
+    // If persist.radio.apm_sim_not_pwdn = 1, sim will NOT be powered down during APM ON.
+    private static final String APM_SIM_NOT_PWDN_PROPERTY = "persist.radio.apm_sim_not_pwdn";
+    private static final boolean APM_SIM_NOT_PWDN = (SystemProperties.getInt(
+            APM_SIM_NOT_PWDN_PROPERTY, 0) == 1);
 
     //***** Class Methods
     public static CardSubscriptionManager getInstance(Context context, MSimUiccController uiccMgr,
@@ -187,6 +196,7 @@ public class CardSubscriptionManager extends Handler {
             CommandsInterface[] ci) {
         logd("Constructor - Enter");
 
+        mContext = context;
         mCi = ci;
         mUiccController = uiccManager;
 
@@ -572,6 +582,7 @@ public class CardSubscriptionManager extends Handler {
         UiccCard uiccCard = null;
         boolean cardRemoved = false;
         boolean cardInserted = false;
+        boolean isApmSimPwdn = false;
 
         if (cardInfo != null) {
             uiccCard = cardInfo.getUiccCard();
@@ -679,8 +690,21 @@ public class CardSubscriptionManager extends Handler {
         if (cardInserted){
             notifyCardInfoAvailable(cardIndex);
         }
+
         if (cardRemoved){
-            notifyCardInfoNotAvailable(cardIndex, CardUnavailableReason.REASON_CARD_REMOVED);
+            isApmSimPwdn = isApmSimPwrDown(cardIndex);
+            logd("onUpdateUiccStatus(): Card removed event. Is APM sim power down = "
+                    + isApmSimPwdn);
+            CardUnavailableReason cardRemovedReason = CardUnavailableReason.REASON_CARD_REMOVED;
+            if (isApmSimPwdn) {
+                cardRemovedReason = CardUnavailableReason.REASON_APM_SIM_POWER_DOWN;
+                mAllCardsInfoAvailable = false;
+                //Reset card info so that card state will remain invalid till next get card status
+                resetCardInfo(cardIndex);
+                //As we are resetting cardInfo it is as good as sub is deactivated.
+                mSubActivated[cardIndex] = false;
+            }
+            notifyCardInfoNotAvailable(cardIndex, cardRemovedReason);
         }
 
         if (cardRemoved || cardInserted) {
@@ -840,6 +864,24 @@ public class CardSubscriptionManager extends Handler {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Checks if card is powered down due to APM on.
+     */
+    /*package*/ boolean isApmSimPwrDown(int cardIndex) {
+        boolean isRadioOn = true;
+        if (cardIndex >= 0 && cardIndex < mNumPhones) {
+            isRadioOn = mCi[cardIndex].getRadioState().isOn();
+        }
+        // If airplane mode setting is on or radio is off and sim not power down
+        // property is not set.
+        boolean isApmSimPwdn = !APM_SIM_NOT_PWDN &&
+                ((Settings.Global.getInt(mContext.getContentResolver(),
+                Settings.Global.AIRPLANE_MODE_ON, 0) == 1) || !isRadioOn);
+        logd("isShutdownOrApmSimPwrDown: isRadioOn[" + cardIndex + "] = " + isRadioOn
+                + " isApmSimPwdn = " + isApmSimPwdn);
+        return isApmSimPwdn;
     }
 
     private void logd(String string) {

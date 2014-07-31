@@ -920,9 +920,10 @@ public class SubscriptionManager extends Handler {
                 // should not update sub preferences, instead wait for the activations to complete.
                 // This can happen when user changes the subscription app within the same sub.
                 // For ex: CSIM->Global, Global->CSIM etc.
-                if (mSetSubscriptionInProgress && isAnyPendingActivateRequest(i)) {
-                    logd("updateSubPreferences: Sub" + i
-                            + " has pending activation reqs. Do not update sub prefs now.");
+                if ((mSetSubscriptionInProgress && isAnyPendingActivateRequest(i)) ||
+                        mCardSubMgr.isApmSimPwrDown(i)) {
+                    logd("updateSubPreferences: Sub" + i + " has pending activation reqs or is in"
+                           + "APM sim powerdown. Do not update sub prefs now.");
                     return;
                 }
             }
@@ -1241,16 +1242,20 @@ public class SubscriptionManager extends Handler {
         // Reset the current subscription and notify the subscriptions deactivated.
         if (reason == CardUnavailableReason.REASON_RADIO_UNAVAILABLE
                 || reason == CardUnavailableReason.REASON_SIM_REFRESH_RESET
+                || reason == CardUnavailableReason.REASON_APM_SIM_POWER_DOWN
                 || (getCurrentSubscriptionReadiness(sub) == false
                 && reason == CardUnavailableReason.REASON_CARD_REMOVED)) {
             // Card has been removed from slot - cardIndex.
             // Mark the active subscription from this card as de-activated!!
             resetCurrentSubscription(sub);
-            updateSubPreferences();
+            if (reason == CardUnavailableReason.REASON_CARD_REMOVED) {
+                updateSubPreferences();
+            }
             notifySubscriptionDeactivated(sub.ordinal());
         }
 
-        if (reason == CardUnavailableReason.REASON_RADIO_UNAVAILABLE) {
+        if (reason == CardUnavailableReason.REASON_RADIO_UNAVAILABLE
+                || reason == CardUnavailableReason.REASON_APM_SIM_POWER_DOWN) {
             mAllCardsStatusAvailable = false;
         }
     }
