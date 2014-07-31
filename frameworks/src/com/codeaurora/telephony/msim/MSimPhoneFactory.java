@@ -297,7 +297,7 @@ public class MSimPhoneFactory extends PhoneFactory {
 
         // Update MCC MNC device configuration information
         String defaultMccMnc = MSimTelephonyManager.getDefault().getSimOperator(subscription);
-        MccTable.updateMccMncConfiguration(sContext, defaultMccMnc, false);
+        MccTable.updateMccMncConfiguration(sContext, defaultMccMnc);
 
         // Broadcast an Intent for default sub change
         Intent intent = new Intent(MSimTelephonyIntents.ACTION_DEFAULT_SUBSCRIPTION_CHANGED);
