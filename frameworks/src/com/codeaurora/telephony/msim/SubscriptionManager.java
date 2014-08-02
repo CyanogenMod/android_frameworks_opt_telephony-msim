@@ -1636,7 +1636,8 @@ public class SubscriptionManager extends Handler {
 
         if (!mDisableDdsInProgress) {
 
-            if (!getCurrentSubscriptionReadiness(SubscriptionId.values()[subscription])) {
+            if (getCurrentSubscriptionStatus(SubscriptionId.values()[subscription])
+                                              != SubscriptionStatus.SUB_ACTIVATED) {
                 logd("setDataSubscription: requested SUB:" + subscription
                         + " is not yet activated, returning failure");
                 exception = new RuntimeException("Subscription not active");
