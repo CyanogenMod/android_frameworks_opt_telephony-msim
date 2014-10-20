@@ -322,6 +322,7 @@ public class MSimPhoneFactory extends PhoneFactory {
                     Settings.Global.MULTI_SIM_VOICE_CALL_SUBSCRIPTION);
         } catch (SettingNotFoundException snfe) {
             Rlog.e(LOG_TAG, "Settings Exception Reading Dual Sim Voice Call Values");
+            setVoiceSubscription(subscription);
         }
 
         // Set subscription to 0 if current subscription is invalid.
@@ -346,6 +347,7 @@ public class MSimPhoneFactory extends PhoneFactory {
                     Settings.Global.MULTI_SIM_VOICE_PROMPT);
         } catch (SettingNotFoundException snfe) {
             Rlog.e(LOG_TAG, "Settings Exception Reading Dual Sim Voice Prompt Values");
+            setPromptEnabled(prompt);
         }
         prompt = (value == 0) ? false : true ;
         Rlog.d(LOG_TAG, "Prompt option:" + prompt);
@@ -370,6 +372,7 @@ public class MSimPhoneFactory extends PhoneFactory {
                     Settings.Global.MULTI_SIM_SMS_PROMPT);
         } catch (SettingNotFoundException snfe) {
             Rlog.e(LOG_TAG, "Settings Exception Reading Dual Sim SMS Prompt Values");
+            setSMSPromptEnabled(prompt);
         }
         prompt = (value == 0) ? false : true ;
         Rlog.d(LOG_TAG, "SMS Prompt option:" + prompt);
@@ -394,6 +397,7 @@ public class MSimPhoneFactory extends PhoneFactory {
                     Settings.Global.MULTI_SIM_DATA_CALL_SUBSCRIPTION);
         } catch (SettingNotFoundException snfe) {
             Rlog.e(LOG_TAG, "Settings Exception Reading Dual Sim Data Call Values");
+            setDataSubscription(subscription);
         }
 
         if (subscription < 0 || subscription >= MSimTelephonyManager.getDefault().getPhoneCount()) {
@@ -413,6 +417,7 @@ public class MSimPhoneFactory extends PhoneFactory {
                     Settings.Global.MULTI_SIM_DEFAULT_DATA_CALL_SUBSCRIPTION);
         } catch (SettingNotFoundException snfe) {
             Rlog.e(LOG_TAG, "Settings Exception Reading Multi Sim Default Data Call Values");
+            setDefaultDataSubscription(subscription);
         }
         return subscription;
     }
@@ -426,6 +431,7 @@ public class MSimPhoneFactory extends PhoneFactory {
                     Settings.Global.MULTI_SIM_SMS_SUBSCRIPTION);
         } catch (SettingNotFoundException snfe) {
             Rlog.e(LOG_TAG, "Settings Exception Reading Dual Sim SMS Values");
+            setSMSSubscription(subscription);
         }
 
         if (subscription < 0 || subscription >= MSimTelephonyManager.getDefault().getPhoneCount()) {
@@ -445,6 +451,7 @@ public class MSimPhoneFactory extends PhoneFactory {
                     Settings.Global.MULTI_SIM_PRIORITY_SUBSCRIPTION);
         } catch (SettingNotFoundException snfe) {
             Rlog.e(LOG_TAG, "Settings Exception Reading Dual Sim Priority Subscription Values");
+            setPrioritySubscription(subscription);
         }
 
         return subscription;
